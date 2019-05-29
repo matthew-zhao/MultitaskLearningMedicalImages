@@ -1,0 +1,113 @@
+import torch
+import torch.nn as nn
+import json, os
+
+from model import Model
+
+class BaseAgent:
+    def __init__(self):
+        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+    def train(self, train_data, test_data, num_epochs, save_history, save_path, verbose):
+        raise NotImplementedError
+
+    def eval(self, data):
+        raise NotImplementedError
+
+    def save_model(self, save_path):
+        pass
+
+    def load_model(self, save_path):
+        pass
+
+class MultiTaskSeparateAgent(BaseAgent):
+    def __init__(self, num_classes, task_prob=None):
+        super(MultiTaskSeparateAgent, self).__init__()
+        self.num_tasks = len(num_classes)
+        self.task_prob = task_prob
+        self.models = [model.to(self.device) for model in Model(num_tasks=num_classes, pretrained_model=model)]
+
+
+    def train(self, train_data, test_data, num_phases=50, save_history=False, save_path='.', verbose=False):
+        for model in self.models:
+            model.train()
+
+        if self.task_prob is None:
+            dataloader = train_data.get_loader()
+        else:
+            dataloader = train_data.get_loader(prob=self.task_prob)
+
+        criterion = nn.CrossEntropyLoss()
+        #optimizers = [optim.SGD(model.parameters(), lr=0.001) for model in self.models]
+        optimizers = [torch.optim.Adam(model.parameters(), lr=0.0001) for model in self.models]
+        scheduler = [torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', patience=1, verbose=True) for optimizer in optimizers]
+        accuracy = []
+
+        for phase in range(num_phases):
+            for inputs, labels, task in dataloader:
+                model = self.models[task]
+                optimizer = optimizers[task]
+
+                inputs, labels = inputs.to(self.device), labels.to(self.device)
+                outputs = model(inputs)
+                loss = criterion(outputs, labels)
+
+                optimizer.zero_grad()
+                loss.backward()
+                optimizer.step()
+
+            accuracy.append(self.eval(test_data))
+
+            if verbose:
+                print('[Phase {}] Accuracy: {}'.format(phase+1, accuracy[-1]))
+
+        if save_history:
+            self._save_history(accuracy, save_path)
+
+
+    def _save_history(self, history, save_path):
+        if not os.path.isdir(save_path):
+            os.makedirs(save_path)
+
+        for i, h in enumerate(zip(*history)):
+            filename = os.path.join(save_path, 'history_class{}.json'.format(i))
+
+            with open(filename, 'w') as f:
+                json.dump(h, f)
+
+
+    def eval(self, data):
+        correct = [0 for _ in range(self.num_tasks)]
+        total = [0 for _ in range(self.num_tasks)]
+
+        with torch.no_grad():
+            for t, model in enumerate(self.models):
+                model.eval()
+
+                for inputs, labels, task in data.get_loader():
+                    inputs, labels = inputs.to(self.device), labels.to(self.device)
+                    outputs = model(inputs)
+                    _, predict_labels = torch.max(outputs.detach(), 1)
+
+                    total[t] += labels.size(0)
+                    correct[t] += (predict_labels == labels).sum().item()
+
+                model.train()
+
+            return [c / t for c, t in zip(correct, total)]
+
+
+    def save_model(self, save_path='.'):
+        if not os.path.isdir(save_path):
+            os.makedirs(save_path)
+
+        for t, model in enumerate(self.models):
+            filename = os.path.join(save_path, 'model{}'.format(t))
+            torch.save(model.state_dict(), filename)
+
+
+    def load_model(self, save_path='.'):
+        if os.path.isdir(save_path):
+            for t, model in enumerate(self.models):
+                filename = os.path.join(save_path, 'model{}'.format(t))
+                model.load_state_dict(torch.load(filename))
