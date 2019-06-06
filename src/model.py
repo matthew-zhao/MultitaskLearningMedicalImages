@@ -45,4 +45,9 @@ class _Model(nn.Module):
 
 def Model(num_tasks, pretrained_model):
     encoder = _Encoder(pretrained_model=pretrained_model)
+    # multitask case
+    #if isinstance(num_tasks, list):
     return [_Model(output_size=class_size, encoder=encoder) for class_size in num_tasks]
+
+    # single task case
+    #return _Model(output_size=num_tasks, encoder=encoder)

@@ -12,7 +12,7 @@ import argparse
 from dataloader import MURALoader
 from agent import MultiTaskSeparateAgent
 
-def get_study_level_data(study_type, base_dir):
+def get_study_level_data(study_type, base_dir, data_cat):
     """
     Returns a dict, with keys 'train' and 'valid' and respective values as study level dataframes, 
     these dataframes contain three columns 'Path', 'Count', 'Label'
@@ -34,22 +34,29 @@ def get_study_level_data(study_type, base_dir):
                 i+=1
     return study_data
 
-def train_and_evaluate_model(pretrained_model, num_phases, batch_size, num_classes, input_size, base_dir, num_minibatches):
+def train_and_evaluate_model(pretrained_model, num_phases, batch_size, num_classes, input_size, base_dir, 
+        num_minibatches, sample_with_replacement, study_type):
     model_name = pretrained_model
     model = pretrainedmodels.__dict__[model_name](num_classes=1000, pretrained='imagenet')
 
     data_cat = ['train', 'valid'] # data categories
 
     study_types = [folder for folder in os.listdir(os.path.join(base_dir, 'train'))]
-    data_task_list = [get_study_level_data(study_type, base_dir) for study_type in study_types]
 
-    train_data = MURALoader(data_task_list, batch_size=batch_size, num_minibatches=num_minibatches, train=True, drop_last=True, rescale_size=input_size)
-    test_data = MURALoader(data_task_list, batch_size=batch_size, num_minibatches=num_minibatches, train=False, drop_last=False, rescale_size=input_size)
+    if study_type:
+        data_task_list = [get_study_level_data(study_type, base_dir, data_cat)]
+    else:
+        data_task_list = [get_study_level_data(study_type, base_dir, data_cat) for study_type in study_types]
+
+    train_data = MURALoader(data_task_list, batch_size=batch_size, num_minibatches=num_minibatches, train=True, drop_last=True, 
+        rescale_size=input_size, sample_with_replacement=sample_with_replacement)
+    test_data = MURALoader(data_task_list, batch_size=batch_size, num_minibatches=num_minibatches, train=False, drop_last=False, 
+        rescale_size=input_size, sample_with_replacement=sample_with_replacement)
 
     num_classes_multi = train_data.num_classes_multi(num_tasks=len(study_types))
     num_channels = train_data.num_channels
 
-    agent = MultiTaskSeparateAgent(num_classes=num_classes_multi)
+    agent = MultiTaskSeparateAgent(num_classes=num_classes_multi, model=model)
     agent.train(train_data=train_data,
                     test_data=test_data,
                     num_phases=num_phases,
@@ -67,15 +74,27 @@ def main():
     parser.add_argument('--input_size', '-i', default=224, help='the size of the images to rescale to')
     parser.add_argument('--base_dir', '-d', required=True, help='directory in which train and valid folders are')
     parser.add_argument('--num_minibatches', '-m', default=5, help='number of minibatches per phase')
+    parser.add_argument('--sample_with_replacement', '-r', action='store_true')
+    parser.add_argument('--study_type', '-t', default=None, help='If specified, we will only train a single task model on that study')
 
     args = parser.parse_args()
 
     func_arguments = {}
     for (key, value) in vars(args).items():
-        func_arguments[key] = value
+        if key == 'sample_with_replacement':
+            if args.sample_with_replacement:
+                func_arguments['sample_with_replacement'] = True
+            else:
+                func_arguments['sample_with_replacement'] = False
+        else:
+            func_arguments[key] = value
 
     train_and_evaluate_model(func_arguments['pretrained_model'], func_arguments['num_phases'], func_arguments['batch_size'], 
-        func_arguments['num_classes'], func_arguments['input_size'], func_arguments['base_dir'], func_arguments['num_minibatches'])
+        func_arguments['num_classes'], func_arguments['input_size'], func_arguments['base_dir'], func_arguments['num_minibatches'],
+        func_arguments['sample_with_replacement'], func_arguments['study_type'])
+
+if __name__ == "__main__":
+    main()
 
 
 

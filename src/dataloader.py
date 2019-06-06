@@ -34,7 +34,7 @@ class BaseDataLoader:
         raise NotImplementedError
 
 class MURALoader(BaseDataLoader):
-    def __init__(self, data_task_list, batch_size=128, num_minibatches=5, train=True, shuffle=False, drop_last=False, rescale_size=224):
+    def __init__(self, data_task_list, batch_size=128, num_minibatches=5, train=True, shuffle=True, drop_last=False, rescale_size=224, sample_with_replacement=True):
         super(MURALoader, self).__init__(batch_size, train, shuffle, drop_last)
         if train:
             data_transform = transforms.Compose([
@@ -54,12 +54,18 @@ class MURALoader(BaseDataLoader):
         phase = 'train' if train else 'valid'
         
         image_datasets = [ImageDataset(data[phase], transform=data_transform) for data in data_task_list]
-        samplers = [ReplacementRandomSampler(image_dataset, num_minibatches * batch_size) for image_dataset in image_datasets]
-        self.dataloaders = [DataLoader(dataset,
-                                     batch_size=batch_size,
-                                     shuffle=shuffle,
-                                     drop_last=drop_last,
-                                     sampler=sampler) for dataset, sampler in zip(image_datasets, samplers)]
+        if sample_with_replacement:
+            samplers = [ReplacementRandomSampler(image_dataset, num_minibatches * batch_size) for image_dataset in image_datasets]
+            self.dataloaders = [DataLoader(dataset,
+                                         batch_size=batch_size,
+                                         shuffle=False,
+                                         drop_last=drop_last,
+                                         sampler=sampler) for dataset, sampler in zip(image_datasets, samplers)]
+        else:
+            self.dataloaders = [DataLoader(dataset,
+                                         batch_size=batch_size,
+                                         shuffle=shuffle,
+                                         drop_last=drop_last) for dataset in image_datasets]
         # replace with None if this doesn't work
         self.task_dataloader = self.dataloaders
 

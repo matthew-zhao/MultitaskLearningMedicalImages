@@ -1,5 +1,6 @@
 import torch
 from torch.utils.data.sampler import Sampler
+from itertools import chain
 
 class ReplacementRandomSampler(Sampler):
     """Samples elements randomly. User can specify ``num_samples`` to draw.
