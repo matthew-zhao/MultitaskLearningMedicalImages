@@ -231,7 +231,10 @@ class MultiTaskSeparateAgent(BaseAgent):
                 for inputs, labels, task in data.get_loader():
                     inputs, labels = inputs.to(self.device), labels.to(self.device)
                     outputs = model(inputs)
+                    print(outputs, type(outputs))
                     _, predict_labels = torch.max(outputs.detach(), 1)
+                    print(predict_labels, type(predict_labels))
+                    print(labels, type(labels))
 
                     total[t] += labels.size(0)
                     correct[t] += (predict_labels == labels).sum().item()

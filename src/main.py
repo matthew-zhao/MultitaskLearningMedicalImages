@@ -53,7 +53,7 @@ def train_and_evaluate_model(pretrained_model, num_phases, batch_size, num_class
     test_data = MURALoader(data_task_list, batch_size=batch_size, num_minibatches=num_minibatches, train=False, drop_last=False, 
         rescale_size=input_size, sample_with_replacement=sample_with_replacement)
 
-    num_classes_multi = train_data.num_classes_multi(num_tasks=len(study_types))
+    num_classes_multi = train_data.num_classes_multi(num_tasks=1 if study_type else len(study_types))
     num_channels = train_data.num_channels
 
     agent = MultiTaskSeparateAgent(num_classes=num_classes_multi, model=model)
