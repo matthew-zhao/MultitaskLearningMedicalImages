@@ -89,8 +89,8 @@ def main():
         else:
             func_arguments[key] = value
 
-    train_and_evaluate_model(func_arguments['pretrained_model'], func_arguments['num_phases'], func_arguments['batch_size'], 
-        func_arguments['num_classes'], func_arguments['input_size'], func_arguments['base_dir'], func_arguments['num_minibatches'],
+    train_and_evaluate_model(func_arguments['pretrained_model'], int(func_arguments['num_phases']), int(func_arguments['batch_size']),
+        int(func_arguments['num_classes']), int(func_arguments['input_size']), func_arguments['base_dir'], int(func_arguments['num_minibatches']),
         func_arguments['sample_with_replacement'], func_arguments['study_type'])
 
 if __name__ == "__main__":
