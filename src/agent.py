@@ -190,6 +190,7 @@ class MultiTaskSeparateAgent(BaseAgent):
         accuracy = []
 
         for phase in range(num_phases):
+            num_batches = 0
             for inputs, labels, task in dataloader:
                 model = self.models[task]
                 optimizer = optimizers[task]
@@ -201,8 +202,10 @@ class MultiTaskSeparateAgent(BaseAgent):
                 optimizer.zero_grad()
                 loss.backward()
                 optimizer.step()
+                num_batches += 1
 
             accuracy.append(self.eval(test_data))
+            print(num_batches)
 
             if verbose:
                 print('[Phase {}] Accuracy: {}'.format(phase+1, accuracy[-1]))
