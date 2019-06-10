@@ -54,6 +54,7 @@ class MURALoader(BaseDataLoader):
         phase = 'train' if train else 'valid'
         
         image_datasets = [ImageDataset(data[phase], transform=data_transform) for data in data_task_list]
+        samplers = None
         if sample_with_replacement:
             samplers = [ReplacementRandomSampler(image_dataset, num_minibatches * batch_size) for image_dataset in image_datasets]
             self.dataloaders = [DataLoader(dataset,
@@ -73,7 +74,7 @@ class MURALoader(BaseDataLoader):
         self.batch_size = batch_size
         self.shuffle = shuffle
         self.drop_last = drop_last
-        self.sampler_list = samplers
+        self.sampler_list = samplers if samplers else None
 
 
     def _create_TaskDataLoaders(self):
