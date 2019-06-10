@@ -243,8 +243,8 @@ class MultiTaskSeparateAgent(BaseAgent):
                 _, predict_labels = torch.max(outputs.detach(), 1)
                 #print(predict_labels, type(predict_labels))
                 #print(labels, type(labels))
-                y_true_across_batches.append(labels.cpu().numpy())
-                y_predict_across_batches.append(predict_labels.cpu().numpy())
+                y_true_across_batches.append(labels)
+                y_predict_across_batches.append(predict_labels)
 
                 total[task] += labels.size(0)
                 correct[task] += (predict_labels == labels).sum().item()
