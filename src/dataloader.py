@@ -142,6 +142,8 @@ class MultiTaskDataLoader:
         self.size = sum([len(d) for d in self.dataloaders])
         self.step = 0
 
+        self.task = 0
+
 
     def __iter__(self):
         return self
@@ -152,14 +154,19 @@ class MultiTaskDataLoader:
             self.step = 0
             raise StopIteration
 
-        task = np.random.choice(list(range(len(self.dataloaders))), p=self.prob)
+        # Uncomment below if we want to choose a random task per batch
+        #self.task = np.random.choice(list(range(len(self.dataloaders))), p=self.prob)
 
         try:
-            data, labels = self.iters[task].__next__()
+            data, labels = self.iters[self.task].__next__()
         except StopIteration:
-            self.iters[task] = iter(self.dataloaders[task])
-            data, labels = self.iters[task].__next__()
+            # Uncomment below if we want to choose a random task per batch
+            # self.iters[self.task] = iter(self.dataloaders[self.task])
+            if self.task + 1 >= len(self.iters):
+                return
+            self.task += 1
+            data, labels = self.iters[self.task].__next__()
 
         self.step += 1
 
-        return data, labels, task
+        return data, labels, self.task

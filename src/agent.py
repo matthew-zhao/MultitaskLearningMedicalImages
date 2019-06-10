@@ -2,6 +2,8 @@ import torch
 import torch.nn as nn
 import json, os
 
+from sklearn.metrics import roc_auc_score
+
 from model import Model
 
 class BaseAgent:
@@ -224,24 +226,41 @@ class MultiTaskSeparateAgent(BaseAgent):
         correct = [0 for _ in range(self.num_tasks)]
         total = [0 for _ in range(self.num_tasks)]
 
+        y_true_across_batches = []
+        y_predict_across_batches = []
+
         with torch.no_grad():
-            for t, model in enumerate(self.models):
+            #for t, model in enumerate(self.models):
+            # letting model know it's eval time
+            for model in self.models:
                 model.eval()
 
-                for inputs, labels, task in data.get_loader():
-                    inputs, labels = inputs.to(self.device), labels.to(self.device)
-                    outputs = model(inputs)
-                    print(outputs, type(outputs))
-                    _, predict_labels = torch.max(outputs.detach(), 1)
-                    print(predict_labels, type(predict_labels))
-                    print(labels, type(labels))
+            for inputs, labels, task in data.get_loader():
+                model = self.models[task]
+                inputs, labels = inputs.to(self.device), labels.to(self.device)
+                outputs = model(inputs)
+                #print(outputs, type(outputs))
+                _, predict_labels = torch.max(outputs.detach(), 1)
+                #print(predict_labels, type(predict_labels))
+                #print(labels, type(labels))
+                y_true_across_batches.append(labels.numpy())
+                y_predict_across_batches.append(predict_labels.numpy())
 
-                    total[t] += labels.size(0)
-                    correct[t] += (predict_labels == labels).sum().item()
+                total[t] += labels.size(0)
+                correct[t] += (predict_labels == labels).sum().item()
 
+            if len(y_predict_across_batches) > 0:
+                y_predicts = torch.cat(y_predict_across_batches)
+                y_trues = torch.cat(y_true_across_batches)
+
+                area_under_curve = roc_auc_score(y_trues.cpu().numpy(), y_predicts.cpu().numpy())
+
+            # letting model know it's back to training time
+            for model in self.models:
                 model.train()
 
-            return [c / t for c, t in zip(correct, total)]
+            #return [c / t for c, t in zip(correct, total)]
+            return area_under_curve
 
 
     def save_model(self, save_path='.'):
