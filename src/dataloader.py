@@ -163,7 +163,7 @@ class MultiTaskDataLoader:
             # Uncomment below if we want to choose a random task per batch
             # self.iters[self.task] = iter(self.dataloaders[self.task])
             if self.task + 1 >= len(self.iters):
-                return
+                raise StopIteration
             self.task += 1
             data, labels = self.iters[self.task].__next__()
 
