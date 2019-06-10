@@ -178,11 +178,6 @@ class MultiTaskSeparateAgent(BaseAgent):
         for model in self.models:
             model.train()
 
-        if self.task_prob is None:
-            dataloader = train_data.get_loader()
-        else:
-            dataloader = train_data.get_loader(prob=self.task_prob)
-
         criterion = nn.CrossEntropyLoss()
         #optimizers = [optim.SGD(model.parameters(), lr=0.001) for model in self.models]
         optimizers = [torch.optim.Adam(model.parameters(), lr=0.0001) for model in self.models]
@@ -191,7 +186,7 @@ class MultiTaskSeparateAgent(BaseAgent):
 
         for phase in range(num_phases):
             num_batches = 0
-            for inputs, labels, task in dataloader:
+            for inputs, labels, task in train_data.get_loader(prob=self.task_prob if self.task_prob else 'uniform'):
                 model = self.models[task]
                 optimizer = optimizers[task]
 
