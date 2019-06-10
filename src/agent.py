@@ -260,7 +260,7 @@ class MultiTaskSeparateAgent(BaseAgent):
                 model.train()
 
             #return [c / t for c, t in zip(correct, total)]
-            return area_under_curve
+            return [area_under_curve]
 
 
     def save_model(self, save_path='.'):
