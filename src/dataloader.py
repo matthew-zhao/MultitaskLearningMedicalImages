@@ -5,6 +5,9 @@ from torchvision import transforms
 from replacement_random_sampler import ReplacementRandomSampler
 from dataset import CustomDataset, ImageDataset
 
+#class ViewDataLoader(DataLoader):
+#    def __iter__(self):
+
 class BaseDataLoader:
     def __init__(self, batch_size=1, train=True, shuffle=True, drop_last=False):
         pass
@@ -51,9 +54,9 @@ class MURALoader(BaseDataLoader):
                 transforms.Normalize([0.4914, 0.4822, 0.4465], [0.2023, 0.1994, 0.2010])
             ])
 
-        phase = 'train' if train else 'valid'
+        self.phase = 'train' if train else 'valid'
         
-        image_datasets = [ImageDataset(data[phase], transform=data_transform) for data in data_task_list]
+        image_datasets = [ImageDataset(data[self.phase], transform=data_transform) for data in data_task_list]
         samplers = None
         if sample_with_replacement:
             samplers = [ReplacementRandomSampler(image_dataset, num_minibatches * batch_size) for image_dataset in image_datasets]
@@ -103,7 +106,7 @@ class MURALoader(BaseDataLoader):
     def get_loader(self, prob='uniform'):
         if self.task_dataloader is None:
             self._create_TaskDataLoaders()
-        return MultiTaskDataLoader(self.task_dataloader, prob)
+        return MultiTaskDataLoader(self.task_dataloader, self.phase, prob)
 
     def get_labels(self, task='standard'):
         if task == 'standard':
@@ -131,7 +134,7 @@ class MURALoader(BaseDataLoader):
         return [2 for _ in range(num_tasks)]
 
 class MultiTaskDataLoader:
-    def __init__(self, dataloaders, prob='uniform'):
+    def __init__(self, dataloaders, phase, prob='uniform'):
         self.dataloaders = dataloaders
         self.iters = [iter(loader) for loader in self.dataloaders]
 
@@ -144,6 +147,11 @@ class MultiTaskDataLoader:
         self.step = 0
 
         self.task = 0
+        self.phase = phase
+
+        # if this is set to true, we don't call __next__ on iters
+        self.views_remaining = 0
+        self.data_label_dict = None
 
 
     def __iter__(self):
@@ -158,16 +166,25 @@ class MultiTaskDataLoader:
         # Uncomment below if we want to choose a random task per batch
         #self.task = np.random.choice(list(range(len(self.dataloaders))), p=self.prob)
 
-        try:
-            data, labels = self.iters[self.task].__next__()
-        except StopIteration:
-            # Uncomment below if we want to choose a random task per batch
-            # self.iters[self.task] = iter(self.dataloaders[self.task])
-            if self.task + 1 >= len(self.iters):
-                raise StopIteration
-            self.task += 1
-            data, labels = self.iters[self.task].__next__()
+        if self.phase != 'train' or self.views_remaining == 0:
+            try:
+                self.data_label_dict = self.iters[self.task].__next__()
+            except StopIteration:
+                # Uncomment below if we want to choose a random task per batch
+                # self.iters[self.task] = iter(self.dataloaders[self.task])
+                if self.task + 1 >= len(self.iters):
+                    raise StopIteration
+                self.task += 1
+                self.data_label_dict = self.iters[self.task].__next__()
+            self.views_remaining = list(self.data_label_dict['images'].size())[0]
+            self.step += 1
 
-        self.step += 1
+        self.views_remaining -= 1
 
+        labels = self.data_label_dict['label']
+        if self.phase == 'train':
+            # separate each view in image
+            data = self.data_label_dict['images'][self.views_remaining]
+        else:
+            data = self.data_label_dict['images']
         return data, labels, self.task
