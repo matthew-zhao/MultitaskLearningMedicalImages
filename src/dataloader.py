@@ -5,8 +5,26 @@ from torchvision import transforms
 from replacement_random_sampler import ReplacementRandomSampler
 from dataset import CustomDataset, ImageDataset
 
-#class ViewDataLoader(DataLoader):
-#    def __iter__(self):
+class TrainViewDataLoader(DataLoader):
+    def __iter__(self):
+        batch = torch.Tensor()
+        for idx in self.sampler:
+            batch = torch.cat([batch, self.dataset[idx]])
+            while batch.size(0) >= self.batch_size:
+                if batch.size(0) == self.batch_size:
+                    yield batch
+                    batch = torch.Tensor()
+                else:
+                    return_batch, batch = batch.split([self.batch_size,batch.size(0)-self.batch_size])
+                    yield return_batch
+        if batch.size(0) > 0 and not self.drop_last:
+            yield batch
+
+class TestViewDataLoader(DataLoader):
+    def __iter__(self):
+        for idx in self.sampler:
+            batch = torch.Tensor()
+            yield torch.cat([batch, self.dataset[idx]])
 
 class BaseDataLoader:
     def __init__(self, batch_size=1, train=True, shuffle=True, drop_last=False):
@@ -37,7 +55,8 @@ class BaseDataLoader:
         raise NotImplementedError
 
 class MURALoader(BaseDataLoader):
-    def __init__(self, data_task_list, batch_size=128, num_minibatches=5, train=True, shuffle=True, drop_last=False, rescale_size=224, sample_with_replacement=True):
+    def __init__(self, data_task_list, batch_size=128, num_minibatches=5, train=True, shuffle=True, drop_last=False, rescale_size=224,
+            sample_with_replacement=True):
         super(MURALoader, self).__init__(batch_size, train, shuffle, drop_last)
         if train:
             data_transform = transforms.Compose([
@@ -60,16 +79,29 @@ class MURALoader(BaseDataLoader):
         samplers = None
         if sample_with_replacement:
             samplers = [ReplacementRandomSampler(image_dataset, num_minibatches * batch_size) for image_dataset in image_datasets]
-            self.dataloaders = [DataLoader(dataset,
-                                         batch_size=batch_size,
-                                         shuffle=False,
-                                         drop_last=drop_last,
-                                         sampler=sampler) for dataset, sampler in zip(image_datasets, samplers)]
+            if self.phase == 'train':
+                self.dataloaders = [TrainViewDataLoader(dataset,
+                                     batch_size=batch_size,
+                                     shuffle=False,
+                                     drop_last=drop_last,
+                                     sampler=sampler) for dataset, sampler in zip(image_datasets, samplers)]
+            else:
+                self.dataloaders = [TestViewDataLoader(dataset,
+                                     batch_size=batch_size,
+                                     shuffle=False,
+                                     drop_last=drop_last,
+                                     sampler=sampler) for dataset, sampler in zip(image_datasets, samplers)]
         else:
-            self.dataloaders = [DataLoader(dataset,
-                                         batch_size=batch_size,
-                                         shuffle=shuffle,
-                                         drop_last=drop_last) for dataset in image_datasets]
+            if self.phase == 'train':
+                self.dataloaders = [TrainViewDataLoader(dataset,
+                                     batch_size=batch_size,
+                                     shuffle=False,
+                                     drop_last=drop_last) for dataset in image_datasets]
+            else:
+                self.dataloaders = [TestViewDataLoader(dataset,
+                                     batch_size=batch_size,
+                                     shuffle=shuffle,
+                                     drop_last=drop_last) for dataset in image_datasets]
         # replace with None if this doesn't work
         self.task_dataloader = self.dataloaders
 
@@ -147,11 +179,11 @@ class MultiTaskDataLoader:
         self.step = 0
 
         self.task = 0
-        self.phase = phase
+        # self.phase = phase
 
         # if this is set to true, we don't call __next__ on iters
-        self.views_remaining = 0
-        self.data_label_dict = None
+        # self.views_remaining = 0
+        # self.data_label_dict = None
 
 
     def __iter__(self):
@@ -166,25 +198,20 @@ class MultiTaskDataLoader:
         # Uncomment below if we want to choose a random task per batch
         #self.task = np.random.choice(list(range(len(self.dataloaders))), p=self.prob)
 
-        if self.phase != 'train' or self.views_remaining == 0:
-            try:
-                self.data_label_dict = self.iters[self.task].__next__()
-            except StopIteration:
-                # Uncomment below if we want to choose a random task per batch
-                # self.iters[self.task] = iter(self.dataloaders[self.task])
-                if self.task + 1 >= len(self.iters):
-                    raise StopIteration
-                self.task += 1
-                self.data_label_dict = self.iters[self.task].__next__()
-            self.views_remaining = list(self.data_label_dict['images'].size())[0]
-            self.step += 1
-
-        self.views_remaining -= 1
-
-        labels = self.data_label_dict['label']
-        if self.phase == 'train':
-            # separate each view in image
-            data = self.data_label_dict['images'][self.views_remaining]
-        else:
-            data = self.data_label_dict['images']
+        # if self.phase != 'train' or self.views_remaining == 0:
+        try:
+            data, labels = self.iters[self.task].__next__()
+        except StopIteration:
+            # Uncomment below if we want to choose a random task per batch
+            # self.iters[self.task] = iter(self.dataloaders[self.task])
+            if self.task + 1 >= len(self.iters):
+                raise StopIteration
+            self.task += 1
+            data, labels = self.iters[self.task].__next__()
+        # self.views_remaining = list(data.size())[0]
+        self.step += 1
+        # self.views_remaining -= 1
+        # if self.phase == 'train':
+        #     # separate each view in image
+        #     data = data[self.views_remaining]
         return data, labels, self.task

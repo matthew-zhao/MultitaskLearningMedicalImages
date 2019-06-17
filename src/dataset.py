@@ -40,5 +40,4 @@ class ImageDataset(Dataset):
             images.append(self.transform(image))
         images = torch.stack(images)
         label = self.df.iloc[idx, 2]
-        sample = {'images': images, 'label': label}
-        return sample
+        return images, label
