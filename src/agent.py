@@ -238,6 +238,8 @@ class MultiTaskSeparateAgent(BaseAgent):
                 inputs, labels = inputs.to(self.device), labels.to(self.device)
                 outputs = model(inputs)
                 # average across views
+                _, per_view_predict_labels = torch.max(outputs.detach(), 1)
+
                 output_avg_views = torch.mean(outputs.detach(), 0, keepdim=True)
                 _, predict_labels = torch.max(output_avg_views, 1)
                 #print(predict_labels, type(predict_labels))
@@ -246,7 +248,7 @@ class MultiTaskSeparateAgent(BaseAgent):
                 y_predict_across_batches.append(predict_labels)
 
                 total[task] += labels.size(0)
-                correct[task] += (predict_labels == labels).sum().item()
+                correct[task] += (per_view_predict_labels == labels).sum().item()
 
             if len(y_predict_across_batches) > 0:
                 y_predicts = torch.cat(y_predict_across_batches)
