@@ -33,7 +33,8 @@ class TestViewDataLoader(DataLoader):
             batch = torch.Tensor()
             batch2 = torch.Tensor()
             data, labels = self.dataset[idx]
-            yield torch.cat([batch, data]), torch.cat([batch2, labels])
+            index = torch.tensor([0])
+            yield torch.cat([batch, data]), torch.index_select(torch.cat([batch2, labels]), 0, index)
 
 class BaseDataLoader:
     def __init__(self, batch_size=1, train=True, shuffle=True, drop_last=False):
