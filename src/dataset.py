@@ -1,3 +1,4 @@
+import numpy as np
 import torch
 from torch.utils.data import Dataset
 from torchvision.datasets.folder import pil_loader
@@ -42,5 +43,5 @@ class ImageDataset(Dataset):
             images.append(self.transform(image))
             labels.append(label)
         images = torch.stack(images)
-        labels = torch.stack(labels)
+        labels = torch.stack(torch.from_numpy(np.array(labels)).float().cuda())
         return images, labels
