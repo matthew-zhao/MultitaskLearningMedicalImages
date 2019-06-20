@@ -43,5 +43,5 @@ class ImageDataset(Dataset):
             images.append(self.transform(image))
             labels.append(label)
         images = torch.stack(images)
-        labels = torch.stack(torch.from_numpy(np.array(labels)).float().cuda())
+        labels = torch.from_numpy(np.array(labels)).float().cuda()
         return images, labels
