@@ -32,12 +32,15 @@ class ImageDataset(Dataset):
     def __getitem__(self, idx):
         study_path = self.df.iloc[idx, 0]
         count = self.df.iloc[idx, 1]
+        label = self.df.iloc[idx, 2]
         images = []
+        labels = []
         for i in range(count):
             image = pil_loader(study_path + 'image%s.png' % (i+1))
             #print(self.transform(image).shape)
             #image = self.transform(image)
             images.append(self.transform(image))
+            labels.append(label)
         images = torch.stack(images)
-        label = self.df.iloc[idx, 2]
-        return images, label
+        labels = torch.stack(labels)
+        return images, labels

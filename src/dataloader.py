@@ -9,23 +9,31 @@ from dataset import CustomDataset, ImageDataset
 class TrainViewDataLoader(DataLoader):
     def __iter__(self):
         batch = torch.Tensor()
+        batch2 = torch.Tensor()
         for idx in self.sampler:
-            batch = torch.cat([batch, self.dataset[idx]])
-            while batch.size(0) >= self.batch_size:
-                if batch.size(0) == self.batch_size:
-                    yield batch
+            data, labels = self.dataset[idx]
+            data_batch = torch.cat([batch, data])
+            label_batch = torch.cat([batch2, labels])
+            while data_batch.size(0) >= self.batch_size:
+                if data_batch.size(0) == self.batch_size:
+                    yield [data_batch, label_batch]
                     batch = torch.Tensor()
+                    batch2 = torch.Tensor()
                 else:
-                    return_batch, batch = batch.split([self.batch_size,batch.size(0)-self.batch_size])
-                    yield return_batch
-        if batch.size(0) > 0 and not self.drop_last:
-            yield batch
+                    return_data_batch, data_batch = data_batch.split([self.batch_size,data_batch.size(0)-self.batch_size])
+                    return_label_batch, label_batch = label_batch.split([self.batch_size,label_batch.size(0)-self.batch_size])
+                    yield [return_data_batch, return_label_batch]
+        if data_batch.size(0) > 0 and not self.drop_last:
+            yield data_batch, label_batch
+
 
 class TestViewDataLoader(DataLoader):
     def __iter__(self):
         for idx in self.sampler:
             batch = torch.Tensor()
-            yield torch.cat([batch, self.dataset[idx]])
+            batch2 = torch.Tensor()
+            data, labels = self.dataset[idx]
+            yield torch.cat([batch, data]), torch.cat([batch2, labels])
 
 class BaseDataLoader:
     def __init__(self, batch_size=1, train=True, shuffle=True, drop_last=False):
