@@ -247,8 +247,8 @@ class MultiTaskSeparateAgent(BaseAgent):
                 y_true_across_batches.append(labels)
                 y_predict_across_batches.append(predict_labels)
 
-                total[task] += labels.size(0)
-                correct[task] += (per_view_predict_labels == labels).sum().item()
+                #total[task] += labels.size(0)
+                #correct[task] += (per_view_predict_labels == labels).sum().item()
 
             if len(y_predict_across_batches) > 0:
                 y_predicts = torch.cat(y_predict_across_batches)
