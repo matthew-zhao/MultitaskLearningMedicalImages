@@ -8,26 +8,26 @@ from dataset import CustomDataset, ImageDataset
 
 class TrainViewDataLoader(DataLoader):
     def __iter__(self):
-        batch = torch.Tensor()
-        batch2 = torch.Tensor()
+        data_batch = torch.Tensor()
+        label_batch = torch.Tensor()
         for idx in self.sampler:
             data, labels = self.dataset[idx]
-            data_batch = torch.cat([batch, data])
-            label_batch = torch.cat([batch2, labels])
-            print(data_batch.size(0), self.batch_size)
-            print(label_batch.size(0))
+            data_batch = torch.cat([data_batch, data])
+            label_batch = torch.cat([label_batch, labels])
+            #print(data_batch.size(0), self.batch_size)
+            #print(label_batch.size(0))
             while data_batch.size(0) >= self.batch_size:
-                print("in while loop")
+                #print("in while loop")
                 if data_batch.size(0) == self.batch_size:
                     yield [data_batch, label_batch]
-                    batch = torch.Tensor()
-                    batch2 = torch.Tensor()
+                    data_batch = torch.Tensor()
+                    label_batch = torch.Tensor()
                 else:
                     return_data_batch, data_batch = data_batch.split([self.batch_size,data_batch.size(0)-self.batch_size])
                     return_label_batch, label_batch = label_batch.split([self.batch_size,label_batch.size(0)-self.batch_size])
                     yield [return_data_batch, return_label_batch]
         if data_batch.size(0) > 0 and not self.drop_last:
-            print("in last if check")
+            #print("in last if check")
             yield data_batch, label_batch
 
 
