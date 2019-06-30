@@ -217,7 +217,7 @@ class MultiTaskDataLoader:
         num_batches = 0
         try:
             data, labels = self.iters[self.task].__next__()
-            print("The num batches is: " + num_batches)
+            print("The num batches is: " + str(num_batches))
         except StopIteration:
             # Uncomment below if we want to choose a random task per batch
             # self.iters[self.task] = iter(self.dataloaders[self.task])
