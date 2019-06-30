@@ -14,8 +14,8 @@ class TrainViewDataLoader(DataLoader):
             data, labels = self.dataset[idx]
             data_batch = torch.cat([data_batch, data])
             label_batch = torch.cat([label_batch, labels])
-            #print(data_batch.size(0), self.batch_size)
-            #print(label_batch.size(0))
+            print(data_batch.size(0), self.batch_size)
+            print(label_batch.size(0))
             while data_batch.size(0) >= self.batch_size:
                 #print("in while loop")
                 if data_batch.size(0) == self.batch_size:
