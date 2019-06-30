@@ -214,14 +214,11 @@ class MultiTaskDataLoader:
         #self.task = np.random.choice(list(range(len(self.dataloaders))), p=self.prob)
 
         # if self.phase != 'train' or self.views_remaining == 0:
-        num_batches = 0
         try:
             data, labels = self.iters[self.task].__next__()
-            num_batches += 1
         except StopIteration:
             # Uncomment below if we want to choose a random task per batch
             # self.iters[self.task] = iter(self.dataloaders[self.task])
-            print("The num batches is: " + str(num_batches))
             if self.task + 1 >= len(self.iters):
                 #print("StopIter raised because of task greater than iters")
                 raise StopIteration

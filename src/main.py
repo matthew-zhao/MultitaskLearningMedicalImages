@@ -30,7 +30,8 @@ def get_study_level_data(study_type, base_dir, data_cat):
             for study in os.listdir(BASE_DIR + patient): # for each study in that patient folder
                 label = study_label[study.split('_')[1]] # get label 0 or 1
                 path = BASE_DIR + patient + '/' + study + '/' # path to this study
-                study_data[phase].loc[i] = [path, len(os.listdir(path)), label] # add new row
+                dir_wo_hidden = [file for file in os.listdir(path) if not file.startswith(".")]
+                study_data[phase].loc[i] = [path, len(dir_wo_hidden), label] # add new row
                 i+=1
     return study_data
 
