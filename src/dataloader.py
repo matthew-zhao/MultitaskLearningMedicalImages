@@ -21,7 +21,7 @@ class TrainViewDataLoader(DataLoader):
                 if data_batch.size(0) == self.batch_size:
                     yield [data_batch, label_batch]
                     data_batch = torch.Tensor()
-                    label_batch = torch.Tensor()
+                    label_batch = torch.Tensor().long()
                 else:
                     return_data_batch, data_batch = data_batch.split([self.batch_size,data_batch.size(0)-self.batch_size])
                     return_label_batch, label_batch = label_batch.split([self.batch_size,label_batch.size(0)-self.batch_size])
