@@ -14,8 +14,8 @@ class TrainViewDataLoader(DataLoader):
             data, labels = self.dataset[idx]
             data_batch = torch.cat([data_batch, data])
             label_batch = torch.cat([label_batch, labels])
-            print(data_batch.size(0), self.batch_size)
-            print(label_batch.size(0))
+            #print(data_batch.size(0), self.batch_size)
+            #print(label_batch.size(0))
             while data_batch.size(0) >= self.batch_size:
                 #print("in while loop")
                 if data_batch.size(0) == self.batch_size:
@@ -109,7 +109,7 @@ class MURALoader(BaseDataLoader):
             if self.phase == 'train':
                 self.dataloaders = [TrainViewDataLoader(dataset,
                                      batch_size=batch_size,
-                                     shuffle=False,
+                                     shuffle=True,
                                      drop_last=drop_last) for dataset in image_datasets]
             else:
                 self.dataloaders = [TestViewDataLoader(dataset,
@@ -214,8 +214,10 @@ class MultiTaskDataLoader:
         #self.task = np.random.choice(list(range(len(self.dataloaders))), p=self.prob)
 
         # if self.phase != 'train' or self.views_remaining == 0:
+        num_batches = 0
         try:
             data, labels = self.iters[self.task].__next__()
+            print("The num batches is: " + num_batches)
         except StopIteration:
             # Uncomment below if we want to choose a random task per batch
             # self.iters[self.task] = iter(self.dataloaders[self.task])
