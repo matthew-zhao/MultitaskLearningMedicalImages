@@ -205,10 +205,10 @@ class MultiTaskDataLoader:
 
 
     def __next__(self):
-        if self.step >= self.size:
-            self.step = 0
+        #if self.step >= self.size:
+        #    self.step = 0
             #print("StopIter raised because of step and size")
-            raise StopIteration
+        #    raise StopIteration
 
         # Uncomment below if we want to choose a random task per batch
         #self.task = np.random.choice(list(range(len(self.dataloaders))), p=self.prob)
