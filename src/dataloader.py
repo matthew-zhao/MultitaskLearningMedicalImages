@@ -11,10 +11,11 @@ class TrainViewDataLoader(DataLoader):
         batch = torch.Tensor()
         batch2 = torch.Tensor()
         for idx in self.sampler:
-            print("In for loop")
             data, labels = self.dataset[idx]
             data_batch = torch.cat([batch, data])
             label_batch = torch.cat([batch2, labels])
+            print(data_batch.size(0), self.batch_size)
+            print(label_batch.size(0))
             while data_batch.size(0) >= self.batch_size:
                 print("in while loop")
                 if data_batch.size(0) == self.batch_size:
