@@ -11,10 +11,12 @@ class TrainViewDataLoader(DataLoader):
         batch = torch.Tensor()
         batch2 = torch.Tensor()
         for idx in self.sampler:
+            print("In for loop")
             data, labels = self.dataset[idx]
             data_batch = torch.cat([batch, data])
             label_batch = torch.cat([batch2, labels])
             while data_batch.size(0) >= self.batch_size:
+                print("in while loop")
                 if data_batch.size(0) == self.batch_size:
                     yield [data_batch, label_batch]
                     batch = torch.Tensor()
@@ -24,6 +26,7 @@ class TrainViewDataLoader(DataLoader):
                     return_label_batch, label_batch = label_batch.split([self.batch_size,label_batch.size(0)-self.batch_size])
                     yield [return_data_batch, return_label_batch]
         if data_batch.size(0) > 0 and not self.drop_last:
+            print("in last if check")
             yield data_batch, label_batch
 
 
