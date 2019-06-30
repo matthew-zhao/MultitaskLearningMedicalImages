@@ -43,5 +43,5 @@ class ImageDataset(Dataset):
             images.append(self.transform(image))
             labels.append(label)
         images = torch.stack(images)
-        labels = torch.from_numpy(np.array(labels)).float()
+        labels = torch.from_numpy(np.array(labels)).long()
         return images, labels

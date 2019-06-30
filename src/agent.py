@@ -192,7 +192,6 @@ class MultiTaskSeparateAgent(BaseAgent):
 
                 inputs, labels = inputs.to(self.device), labels.to(self.device)
                 outputs = model(inputs)
-                labels = torch.tensor(labels, dtype=torch.long, device=self.device)
                 loss = criterion(outputs, labels)
 
                 optimizer.zero_grad()
