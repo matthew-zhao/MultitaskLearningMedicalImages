@@ -2,7 +2,7 @@ import torch
 
 class WeightedCrossEntropyLoss(torch.nn.modules.Module):
     def __init__(self, Wt1, Wt0):
-        super(Loss, self).__init__()
+        super(WeightedCrossEntropyLoss, self).__init__()
         self.Wt1 = Wt1
         self.Wt0 = Wt0
         
