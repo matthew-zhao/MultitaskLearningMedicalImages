@@ -1,4 +1,5 @@
 import torch
+from torch.autograd import Variable
 import pretrainedmodels
 import os
 import pandas as pd
@@ -11,6 +12,7 @@ import argparse
 
 from dataloader import MURALoader
 from agent import MultiTaskSeparateAgent
+from loss import WeightedCrossEntropyLoss
 
 def get_study_level_data(study_type, base_dir, data_cat):
     """
@@ -35,6 +37,19 @@ def get_study_level_data(study_type, base_dir, data_cat):
                 i+=1
     return study_data
 
+def n_p(x):
+    '''convert numpy float to Variable tensor float'''    
+    return Variable(torch.cuda.FloatTensor([x]), requires_grad=False)
+
+def get_count(df, cat):
+    '''
+    Returns number of images in a study type dataframe which are of abnormal or normal
+    Args:
+    df -- dataframe
+    cat -- category, "positive" for abnormal and "negative" for normal
+    '''
+    return df[df['Path'].str.contains(cat)]['Count'].sum()
+
 def train_and_evaluate_model(pretrained_model, num_phases, batch_size, num_classes, input_size, base_dir, 
         num_minibatches, sample_with_replacement, study_type):
     model_name = pretrained_model
@@ -57,8 +72,16 @@ def train_and_evaluate_model(pretrained_model, num_phases, batch_size, num_class
     num_classes_multi = train_data.num_classes_multi(num_tasks=1 if study_type else len(study_types))
     num_channels = train_data.num_channels
 
+    tais = [{x: get_count(study_data[x], 'positive') for x in data_cat} for study_data in data_task_list]
+    tnis = [{x: get_count(study_data[x], 'negative') for x in data_cat} for study_data in data_task_list]
+    Wt1_list = [{x: n_p(tnis[i][x] / (tnis[i][x] + tais[i][x])) for x in data_cat} for i in range(len(data_task_list))]
+    Wt0_list = [{x: n_p(tais[i][x] / (tnis[i][x] + tais[i][x])) for x in data_cat} for i in range(len(data_task_list))]
+
+    criterions = [WeightedCrossEntropyLoss(Wt1, Wt0) for Wt1, Wt0 in zip(Wt1_list, Wt0_list)]
+
     agent = MultiTaskSeparateAgent(num_classes=num_classes_multi, model=model)
-    agent.train(train_data=train_data,
+    agent.train(criterions=criterions,
+                    train_data=train_data,
                     test_data=test_data,
                     num_phases=num_phases,
                     save_history=True,

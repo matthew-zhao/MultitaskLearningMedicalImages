@@ -174,11 +174,10 @@ class MultiTaskSeparateAgent(BaseAgent):
         self.models = [model.to(self.device) for model in Model(num_tasks=num_classes, pretrained_model=model)]
 
 
-    def train(self, train_data, test_data, num_phases=50, save_history=False, save_path='.', verbose=False):
+    def train(self, criterions, train_data, test_data, num_phases=50, save_history=False, save_path='.', verbose=False):
         for model in self.models:
             model.train()
 
-        criterion = nn.CrossEntropyLoss()
         #optimizers = [optim.SGD(model.parameters(), lr=0.001) for model in self.models]
         optimizers = [torch.optim.Adam(model.parameters(), lr=0.0001) for model in self.models]
         scheduler = [torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', patience=1, verbose=True) for optimizer in optimizers]
@@ -189,10 +188,11 @@ class MultiTaskSeparateAgent(BaseAgent):
             for inputs, labels, task in train_data.get_loader(prob=self.task_prob if self.task_prob else 'uniform'):
                 model = self.models[task]
                 optimizer = optimizers[task]
+                criterion = criterions[task]
 
                 inputs, labels = inputs.to(self.device), labels.to(self.device)
                 outputs = model(inputs)
-                loss = criterion(outputs, labels)
+                loss = criterion(outputs, labels, "train")
 
                 optimizer.zero_grad()
                 loss.backward()
