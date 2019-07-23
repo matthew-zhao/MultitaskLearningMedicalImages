@@ -192,7 +192,7 @@ class MultiTaskSeparateAgent(BaseAgent):
 
                 inputs, labels = inputs.to(self.device), labels.to(self.device)
                 outputs = model(inputs)
-                loss = criterion(outputs, labels.float())
+                loss = criterion(outputs, labels)
 
                 optimizer.zero_grad()
                 loss.backward()
