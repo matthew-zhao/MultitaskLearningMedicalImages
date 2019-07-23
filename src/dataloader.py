@@ -76,7 +76,7 @@ class MURALoader(BaseDataLoader):
             data_transform = transforms.Compose([
                 transforms.Resize((rescale_size, rescale_size)),
                 transforms.RandomHorizontalFlip(),
-                transforms.RandomRotation(10),
+                transforms.RandomRotation(30),
                 transforms.ToTensor(),
                 transforms.Normalize([0.4914, 0.4822, 0.4465], [0.2023, 0.1994, 0.2010])
             ])
