@@ -1,8 +1,10 @@
 import torch
+import torch.nn as nn
 from torch.autograd import Variable
 import pretrainedmodels
 import os
 import pandas as pd
+import numpy as np
 
 import time, copy
 from torchnet import meter
@@ -77,7 +79,7 @@ def train_and_evaluate_model(pretrained_model, num_phases, batch_size, num_class
     Wt1_list = [{x: n_p(tnis[i][x] / (tnis[i][x] + tais[i][x])) for x in data_cat} for i in range(len(data_task_list))]
     Wt0_list = [{x: n_p(tais[i][x] / (tnis[i][x] + tais[i][x])) for x in data_cat} for i in range(len(data_task_list))]
 
-    criterions = [WeightedCrossEntropyLoss(Wt1, Wt0) for Wt1, Wt0 in zip(Wt1_list, Wt0_list)]
+    criterions = [nn.CrossEntropyLoss(weight=torch.from_numpy(np.array([Wt0["train"], Wt1["train"]]))) for Wt1, Wt0 in zip(Wt1_list, Wt0_list)]
 
     agent = MultiTaskSeparateAgent(num_classes=num_classes_multi, model=model)
     agent.train(criterions=criterions,
