@@ -167,11 +167,11 @@ class StandardAgent(SingleTaskAgent):
             return [c / t for c, t in zip(correct, total)]
 
 class MultiTaskSeparateAgent(BaseAgent):
-    def __init__(self, num_classes, model, task_prob=None):
+    def __init__(self, num_classes, model, input_size, task_prob=None):
         super(MultiTaskSeparateAgent, self).__init__()
         self.num_tasks = len(num_classes)
         self.task_prob = task_prob
-        self.models = [model.to(self.device) for model in Model(num_tasks=num_classes, pretrained_model=model)]
+        self.models = [model.to(self.device) for model in Model(num_tasks=num_classes, pretrained_model=model, input_size=input_size)]
 
 
     def train(self, criterions, train_data, test_data, num_phases=50, save_history=False, save_path='.', verbose=False):

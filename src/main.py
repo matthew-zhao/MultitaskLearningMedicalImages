@@ -81,7 +81,7 @@ def train_and_evaluate_model(pretrained_model, num_phases, batch_size, num_class
 
     criterions = [nn.CrossEntropyLoss(weight=torch.cat((Wt0['train'], Wt1['train']), 0)) for Wt1, Wt0 in zip(Wt1_list, Wt0_list)]
 
-    agent = MultiTaskSeparateAgent(num_classes=num_classes_multi, model=model)
+    agent = MultiTaskSeparateAgent(num_classes=num_classes_multi, model=model, input_size=input_size)
     agent.train(criterions=criterions,
                     train_data=train_data,
                     test_data=test_data,
