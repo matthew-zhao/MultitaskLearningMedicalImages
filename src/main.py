@@ -14,7 +14,6 @@ import argparse
 
 from dataloader import MURALoader
 from agent import MultiTaskSeparateAgent
-from loss import WeightedCrossEntropyLoss
 
 def get_study_level_data(study_type, base_dir, data_cat):
     """
@@ -26,8 +25,12 @@ def get_study_level_data(study_type, base_dir, data_cat):
     study_data = {}
     study_label = {'positive': 1, 'negative': 0}
     for phase in data_cat:
-        BASE_DIR = os.path.join(base_dir, '%s/%s/' % (phase, study_type))
-        patients = list(os.walk(BASE_DIR))[0][1] # list of patient folder names
+        if study_type == "XR":
+            BASE_DIR = os.path.join(base_dir, '%s/' % (phase))
+            patients = [os.path.join(study_type, patient) for study_type in os.listdir(BASE_DIR) for patient in os.listdir(BASE_DIR + study_type)]
+        else:
+            BASE_DIR = os.path.join(base_dir, '%s/%s/' % (phase, study_type))
+            patients = os.listdir(BASE_DIR) # list of patient folder names
         study_data[phase] = pd.DataFrame(columns=['Path', 'Count', 'Label'])
         i = 0
         for patient in patients: # for each patient folder
