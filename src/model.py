@@ -9,7 +9,7 @@ class _Encoder(nn.Module):
     def forward(self, x):
         x = self.pretrained_model.features(x)
         out = relu(x, inplace=True)
-        out = avg_pool2d(out, kernel_size=7, stride=1).view(x.size(0), -1)
+        out = avg_pool2d(out, kernel_size=7, stride=1)
         #x = x.view(x.size(0), -1)
         return out
 
