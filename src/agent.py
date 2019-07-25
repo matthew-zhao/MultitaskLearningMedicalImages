@@ -180,12 +180,15 @@ class MultiTaskSeparateAgent(BaseAgent):
 
         #optimizers = [optim.SGD(model.parameters(), lr=0.001) for model in self.models]
         optimizers = [torch.optim.Adam(model.parameters(), lr=0.0001) for model in self.models]
-        scheduler = [torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', patience=1, verbose=True) for optimizer in optimizers]
+        schedulers = [torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='max', patience=0, verbose=True) for optimizer in optimizers]
         accuracy = []
 
         for phase in range(num_phases):
             num_batches = 0
+            #prev_task = 0
             for inputs, labels, task in train_data.get_loader(prob=self.task_prob if self.task_prob else 'uniform'):
+                # if task != prev_task:
+                #     prev_task = task
                 model = self.models[task]
                 optimizer = optimizers[task]
                 criterion = criterions[task]
@@ -199,7 +202,11 @@ class MultiTaskSeparateAgent(BaseAgent):
                 optimizer.step()
                 num_batches += 1
 
-            accuracy.append(self.eval(test_data))
+            val_accuracy = self.eval(test_data)
+            for scheduler in schedulers:
+                scheduler.step(val_accuracy[0])
+            accuracy.append(val_accuracy)
+
             print(num_batches)
 
             if verbose:
@@ -226,6 +233,8 @@ class MultiTaskSeparateAgent(BaseAgent):
 
         y_true_across_batches = []
         y_predict_across_batches = []
+
+        prev_task = 0
 
         with torch.no_grad():
             #for t, model in enumerate(self.models):
