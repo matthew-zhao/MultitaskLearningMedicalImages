@@ -58,7 +58,7 @@ def get_count(df, cat):
 def train_and_evaluate_model(pretrained_model, num_phases, batch_size, num_classes, input_size, base_dir, 
         num_minibatches, sample_with_replacement, study_type):
     model_name = pretrained_model
-    model = pretrainedmodels.__dict__[model_name](num_classes=1000, pretrained='imagenet')
+    model = pretrainedmodels.__dict__[model_name](num_classes=1000, pretrained='imagenet', drop_rate=0.2)
 
     data_cat = ['train', 'valid'] # data categories
 
