@@ -7,6 +7,9 @@ from replacement_random_sampler import ReplacementRandomSampler
 from dataset import CustomDataset, ImageDataset
 
 def calculate_mean_and_stddev(data_task_list, phase):
+    data_transform = transforms.Compose([
+                        transforms.ToTensor()
+                    ])
     image_datasets = [ImageDataset(data[phase], transform=data_transform) for data in data_task_list]
 
     dataloaders = [DataLoader(dataset,
