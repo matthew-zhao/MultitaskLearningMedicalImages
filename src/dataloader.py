@@ -6,6 +6,38 @@ from torchvision import transforms
 from replacement_random_sampler import ReplacementRandomSampler
 from dataset import CustomDataset, ImageDataset
 
+def calculate_mean_and_stddev(data_task_list, phase):
+    image_datasets = [ImageDataset(data[phase], transform=data_transform) for data in data_task_list]
+
+    dataloaders = [DataLoader(dataset,
+                     batch_size=4096,
+                     shuffle=False,
+                     num_workers=4) for dataset in image_datasets]
+
+    pop_mean = []
+    pop_std0 = []
+    pop_std1 = []
+    for dataloader in dataloaders:
+        for i, data in enumerate(dataloader, 0):
+            # shape (batch_size, 3, height, width)
+            numpy_image = data['image'].numpy()
+
+            # shape (3,)
+            batch_mean = np.mean(numpy_image, axis=(0,2,3))
+            batch_std0 = np.std(numpy_image, axis=(0,2,3))
+            batch_std1 = np.std(numpy_image, axis=(0,2,3), ddof=1)
+
+            pop_mean.append(batch_mean)
+            pop_std0.append(batch_std0)
+            pop_std1.append(batch_std1)
+
+    # shape (num_iterations, 3) -> (mean across 0th axis) -> shape (3,)
+    pop_mean = np.array(pop_mean).mean(axis=0)
+    pop_std0 = np.array(pop_std0).mean(axis=0)
+    pop_std1 = np.array(pop_std1).mean(axis=0)
+    print(pop_mean, pop_std0, pop_std1)
+    return pop_mean, pop_std0, pop_std1
+
 class TrainViewDataLoader(DataLoader):
     def __iter__(self):
         data_batch = torch.Tensor()
@@ -72,6 +104,8 @@ class MURALoader(BaseDataLoader):
     def __init__(self, data_task_list, batch_size=128, num_minibatches=5, train=True, shuffle=True, drop_last=False, rescale_size=224,
             sample_with_replacement=True):
         super(MURALoader, self).__init__(batch_size, train, shuffle, drop_last)
+        self.phase = 'train' if train else 'valid'
+        mean, std0, std1 = calculate_mean_and_stddev(data_task_list, self.phase)
         if train:
             data_transform = transforms.Compose([
                 #transforms.Resize((rescale_size, rescale_size)),
@@ -79,16 +113,14 @@ class MURALoader(BaseDataLoader):
                 transforms.RandomHorizontalFlip(0.3),
                 transforms.RandomRotation(30),
                 transforms.ToTensor(),
-                transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+                transforms.Normalize(mean, std1)
             ])
         else:
             data_transform = transforms.Compose([
                 transforms.Resize((rescale_size, rescale_size)),
                 transforms.ToTensor(),
-                transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+                transforms.Normalize(mean, std1)
             ])
-
-        self.phase = 'train' if train else 'valid'
         
         image_datasets = [ImageDataset(data[self.phase], transform=data_transform) for data in data_task_list]
         samplers = None
