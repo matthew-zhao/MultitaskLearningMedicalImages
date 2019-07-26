@@ -12,7 +12,7 @@ def calculate_mean_and_stddev(data_task_list, phase):
                     ])
     image_datasets = [ImageDataset(data[phase], transform=data_transform) for data in data_task_list]
 
-    dataloaders = [DataLoader(dataset,
+    dataloaders = [TrainViewDataLoader(dataset,
                      batch_size=4096,
                      shuffle=False,
                      num_workers=4) for dataset in image_datasets]
