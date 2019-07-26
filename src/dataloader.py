@@ -74,17 +74,18 @@ class MURALoader(BaseDataLoader):
         super(MURALoader, self).__init__(batch_size, train, shuffle, drop_last)
         if train:
             data_transform = transforms.Compose([
-                transforms.Resize((rescale_size, rescale_size)),
-                transforms.RandomHorizontalFlip(),
+                #transforms.Resize((rescale_size, rescale_size)),
+                transforms.RandomResizedCrop(rescale_size),
+                transforms.RandomHorizontalFlip(0.3),
                 transforms.RandomRotation(30),
                 transforms.ToTensor(),
-                transforms.Normalize([0.4914, 0.4822, 0.4465], [0.2023, 0.1994, 0.2010])
+                transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
             ])
         else:
             data_transform = transforms.Compose([
                 transforms.Resize((rescale_size, rescale_size)),
                 transforms.ToTensor(),
-                transforms.Normalize([0.4914, 0.4822, 0.4465], [0.2023, 0.1994, 0.2010])
+                transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
             ])
 
         self.phase = 'train' if train else 'valid'
