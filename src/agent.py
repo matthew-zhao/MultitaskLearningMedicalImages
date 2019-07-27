@@ -186,6 +186,8 @@ class MultiTaskSeparateAgent(BaseAgent):
         for phase in range(num_phases):
             num_batches = 0
             #prev_task = 0
+            y_true_across_batches = []
+            y_predict_across_batches = []
             for inputs, labels, task in train_data.get_loader(prob=self.task_prob if self.task_prob else 'uniform'):
                 # if task != prev_task:
                 #     prev_task = task
@@ -202,6 +204,16 @@ class MultiTaskSeparateAgent(BaseAgent):
                 optimizer.step()
                 num_batches += 1
 
+                _, predict_labels = torch.max(outputs.detach(), 1)
+                y_true_across_batches.append(labels)
+                y_predict_across_batches.append(predict_labels)
+
+            if len(y_predict_across_batches) > 0:
+                y_predicts = torch.cat(y_predict_across_batches)
+                y_trues = torch.cat(y_true_across_batches)
+
+                area_under_curve = roc_auc_score(y_trues.cpu().numpy(), y_predicts.cpu().numpy())
+
             val_accuracy = self.eval(test_data)
             for scheduler in schedulers:
                 scheduler.step(val_accuracy[0])
@@ -210,7 +222,8 @@ class MultiTaskSeparateAgent(BaseAgent):
             print(num_batches)
 
             if verbose:
-                print('[Phase {}] Accuracy: {}'.format(phase+1, accuracy[-1]))
+                print('[Phase {}] Training AUC: {}'.format(phase+1, area_under_curve))
+                print('[Phase {}] Validation AUC: {}'.format(phase+1, accuracy[-1]))
 
         if save_history:
             self._save_history(accuracy, save_path)
