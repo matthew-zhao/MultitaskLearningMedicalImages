@@ -6,8 +6,9 @@ from torchvision import transforms
 from replacement_random_sampler import ReplacementRandomSampler
 from dataset import CustomDataset, ImageDataset
 
-def calculate_mean_and_stddev(data_task_list, phase):
+def calculate_mean_and_stddev(data_task_list, rescale_size, phase):
     data_transform = transforms.Compose([
+                        transforms.Resize((rescale_size, rescale_size)),
                         transforms.ToTensor()
                     ])
     image_datasets = [ImageDataset(data[phase], transform=data_transform) for data in data_task_list]
@@ -108,11 +109,11 @@ class MURALoader(BaseDataLoader):
             sample_with_replacement=True):
         super(MURALoader, self).__init__(batch_size, train, shuffle, drop_last)
         self.phase = 'train' if train else 'valid'
-        mean, std0, std1 = calculate_mean_and_stddev(data_task_list, self.phase)
+        mean, std0, std1 = calculate_mean_and_stddev(data_task_list, rescale_size, self.phase)
         if train:
             data_transform = transforms.Compose([
-                #transforms.Resize((rescale_size, rescale_size)),
-                transforms.RandomResizedCrop(rescale_size),
+                transforms.Resize((rescale_size, rescale_size)),
+                #transforms.RandomResizedCrop(rescale_size),
                 transforms.RandomHorizontalFlip(0.3),
                 transforms.RandomRotation(30),
                 transforms.ToTensor(),
