@@ -22,9 +22,9 @@ def calculate_mean_and_stddev(data_task_list, rescale_size, phase):
     pop_std0 = []
     pop_std1 = []
     for dataloader in dataloaders:
-        for i, data in enumerate(dataloader, 0):
+        for data, label in dataloader:
             # shape (batch_size, 3, height, width)
-            numpy_image = data['image'].numpy()
+            numpy_image = data.numpy()
 
             # shape (3,)
             batch_mean = np.mean(numpy_image, axis=(0,2,3))
