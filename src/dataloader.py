@@ -117,13 +117,13 @@ class MURALoader(BaseDataLoader):
                 transforms.RandomHorizontalFlip(0.3),
                 transforms.RandomRotation(30),
                 transforms.ToTensor(),
-                transforms.Normalize([0.20579669 0.20579669 0.20579669], [0.17244643 0.17244643 0.17244643])
+                transforms.Normalize([0.20579669, 0.20579669, 0.20579669], [0.17244643, 0.17244643, 0.17244643])
             ])
         else:
             data_transform = transforms.Compose([
                 transforms.Resize((rescale_size, rescale_size)),
                 transforms.ToTensor(),
-                transforms.Normalize([0.20174034 0.20174034 0.20174034], [0.1777517 0.1777517 0.1777517])
+                transforms.Normalize([0.20174034, 0.20174034, 0.20174034], [0.1777517, 0.1777517, 0.1777517])
             ])
         
         image_datasets = [ImageDataset(data[self.phase], transform=data_transform) for data in data_task_list]
