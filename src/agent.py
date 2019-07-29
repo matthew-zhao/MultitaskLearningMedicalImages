@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import json, os
+from torch.nn.functional import softmax, relu, avg_pool2d, sigmoid
 
 from sklearn.metrics import roc_auc_score
 
@@ -204,7 +205,7 @@ class MultiTaskSeparateAgent(BaseAgent):
                 optimizer.step()
                 num_batches += 1
 
-                _, predict_labels = torch.max(outputs.detach(), 1)
+                _, predict_labels = torch.max(sigmoid(outputs).detach(), 1)
                 y_true_across_batches.append(labels)
                 y_predict_across_batches.append(predict_labels)
 
@@ -262,7 +263,7 @@ class MultiTaskSeparateAgent(BaseAgent):
                 # average across views
                 # _, per_view_predict_labels = torch.max(outputs.detach(), 1)
 
-                output_avg_views = torch.mean(outputs.detach(), 0, keepdim=True)
+                output_avg_views = torch.mean(sigmoid(outputs).detach(), 0, keepdim=True)
                 _, predict_labels = torch.max(output_avg_views, 1)
                 #print(predict_labels, type(predict_labels))
                 #print(labels, type(labels))

@@ -26,7 +26,7 @@ class _Decoder(nn.Module):
         )
 
     def forward(self, x):
-        x = sigmoid(self.layers(x))
+        x = self.layers(x)
 
         return x
 
