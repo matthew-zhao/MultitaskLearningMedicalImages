@@ -1,5 +1,5 @@
 import torch.nn as nn
-from torch.nn.functional import softmax, relu, avg_pool2d
+from torch.nn.functional import softmax, relu, avg_pool2d, sigmoid
 
 class _Encoder(nn.Module):
     def __init__(self, pretrained_model, input_size):
@@ -26,7 +26,7 @@ class _Decoder(nn.Module):
         )
 
     def forward(self, x):
-        x = self.layers(x)
+        x = sigmoid(self.layers(x))
 
         return x
 
