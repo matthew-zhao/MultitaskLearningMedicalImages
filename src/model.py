@@ -5,12 +5,16 @@ class _Encoder(nn.Module):
     def __init__(self, pretrained_model, input_size):
         super(_Encoder, self).__init__()
         self.pretrained_model = pretrained_model
+        self.pretrained_model.features.norm5 = nn.Sequential(
+            nn.AdaptiveAvgPool2d(7),
+            nn.BatchNorm2d(1024, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+        )
         self.input_size = input_size
 
     def forward(self, x):
         x = self.pretrained_model.features(x)
-        out = relu(x, inplace=True)
-        out = avg_pool2d(out, kernel_size=int(self.input_size / 32), stride=1).view(x.size(0), -1)
+        #out = relu(x, inplace=True)
+        #out = avg_pool2d(out, kernel_size=int(self.input_size / 32), stride=1).view(x.size(0), -1)
         #x = x.view(x.size(0), -1)
         return out
 
@@ -22,6 +26,7 @@ class _Decoder(nn.Module):
             #nn.Linear(128*8*8, 1024),
             #nn.BatchNorm1d(1024),
             #nn.ReLU(),
+            nn.Dropout(0.2),
             nn.Linear(1024, output_size)
         )
 

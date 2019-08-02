@@ -181,7 +181,8 @@ class MultiTaskSeparateAgent(BaseAgent):
 
         #optimizers = [optim.SGD(model.parameters(), lr=0.001) for model in self.models]
         optimizers = [torch.optim.Adam(model.parameters(), lr=0.0001) for model in self.models]
-        schedulers = [torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='max', patience=0, verbose=True) for optimizer in optimizers]
+        schedulers = [torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer,
+            mode='max', factor=0.5, threshold=1e-3, threshold_mode='abs', patience=0, verbose=True) for optimizer in optimizers]
         accuracy = []
 
         for phase in range(num_phases):
