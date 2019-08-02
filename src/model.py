@@ -10,6 +10,7 @@ class _Encoder(nn.Module):
             nn.BatchNorm2d(1024, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
         )
         self.input_size = input_size
+        self.dim_feats = self.pretrained_model.last_linear.in_features
 
     def forward(self, x):
         x = self.pretrained_model.features(x)
@@ -20,14 +21,14 @@ class _Encoder(nn.Module):
 
 
 class _Decoder(nn.Module):
-    def __init__(self, output_size):
+    def __init__(self, in_features, output_size):
         super(_Decoder, self).__init__()
         self.layers = nn.Sequential(
             #nn.Linear(128*8*8, 1024),
             #nn.BatchNorm1d(1024),
             #nn.ReLU(),
             nn.Dropout(0.2),
-            nn.Linear(1024, output_size)
+            nn.Linear(in_features, output_size)
         )
 
     def forward(self, x):
@@ -40,7 +41,7 @@ class _Model(nn.Module):
     def __init__(self, output_size, encoder):
         super(_Model, self).__init__()
         self.encoder = encoder
-        self.decoder = _Decoder(output_size=output_size)
+        self.decoder = _Decoder(in_features=encoder.dim_feats, output_size=output_size)
 
     def forward(self, x):
         x = self.encoder(x)
