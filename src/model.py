@@ -1,5 +1,6 @@
+import torch
 import torch.nn as nn
-from torch.nn.functional import softmax, relu, avg_pool2d, sigmoid
+from torch.nn.functional import softmax, relu, avg_pool2d, adaptive_avg_pool2d, sigmoid
 
 class _Encoder(nn.Module):
     def __init__(self, pretrained_model, input_size):
@@ -14,8 +15,8 @@ class _Encoder(nn.Module):
 
     def forward(self, x):
         features = self.pretrained_model.features(x)
-        out = F.relu(features, inplace=True)
-        out = F.adaptive_avg_pool2d(out, (1, 1))
+        out = relu(features, inplace=True)
+        out = adaptive_avg_pool2d(out, (1, 1))
         out = torch.flatten(out, 1)
         #out = relu(x, inplace=True)
         #out = avg_pool2d(out, kernel_size=int(self.input_size / 32), stride=1).view(x.size(0), -1)
