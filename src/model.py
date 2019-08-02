@@ -11,6 +11,7 @@ class _Encoder(nn.Module):
         )
         self.input_size = input_size
         self.dim_feats = self.pretrained_model.last_linear.in_features
+        print(self.dim_feats)
 
     def forward(self, x):
         x = self.pretrained_model.features(x)
