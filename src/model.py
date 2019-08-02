@@ -16,7 +16,7 @@ class _Encoder(nn.Module):
         #out = relu(x, inplace=True)
         #out = avg_pool2d(out, kernel_size=int(self.input_size / 32), stride=1).view(x.size(0), -1)
         #x = x.view(x.size(0), -1)
-        return out
+        return x
 
 
 class _Decoder(nn.Module):
