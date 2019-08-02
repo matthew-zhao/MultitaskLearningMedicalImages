@@ -11,14 +11,16 @@ class _Encoder(nn.Module):
         )
         self.input_size = input_size
         self.dim_feats = self.pretrained_model.last_linear.in_features
-        print(self.dim_feats)
 
     def forward(self, x):
-        x = self.pretrained_model.features(x)
+        features = self.pretrained_model.features(x)
+        out = F.relu(features, inplace=True)
+        out = F.adaptive_avg_pool2d(out, (1, 1))
+        out = torch.flatten(out, 1)
         #out = relu(x, inplace=True)
         #out = avg_pool2d(out, kernel_size=int(self.input_size / 32), stride=1).view(x.size(0), -1)
         #x = x.view(x.size(0), -1)
-        return x
+        return out
 
 
 class _Decoder(nn.Module):
