@@ -52,7 +52,7 @@ class ImageDataset(Dataset):
         # Given ratio, what should the height be given the width?
         img = np.array(img)
         h, w = img.shape[:2]
-        print(h, w)
+        #print(h, w)
         desired_h = int(w * ratio)
         # If the height should be greater than it is, then pad top/bottom
         if desired_h > h:
@@ -65,5 +65,5 @@ class ImageDataset(Dataset):
             pad_list = [(0,0), (wdiff // 2, desired_w-w-(wdiff // 2)), (0,0)]
         elif desired_h == h:
             return img
-        print(pad_list)
+        #print(pad_list)
         return np.pad(img, pad_list, 'constant', constant_values=np.min(img))
