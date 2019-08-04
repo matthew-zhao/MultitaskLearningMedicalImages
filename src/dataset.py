@@ -40,8 +40,28 @@ class ImageDataset(Dataset):
             image = pil_loader(study_path + 'image%s.png' % (i+1))
             #print(self.transform(image).shape)
             #image = self.transform(image)
-            images.append(self.transform(image))
+            images.append(self.transform(self.pad_image(image)))
             labels.append(label)
         images = torch.stack(images)
         labels = torch.from_numpy(np.array(labels)).long()
         return images, labels
+
+    def pad_image(self, img, ratio=1.):
+        # Default is ratio=1 aka pad to create square image
+        ratio = float(ratio)
+        # Given ratio, what should the height be given the width?
+        h, w = img.shape[:2]
+        print(h, w)
+        desired_h = int(w * ratio)
+        # If the height should be greater than it is, then pad top/bottom
+        if desired_h > h:
+            hdiff = int(desired_h - h)
+            pad_list = [(hdiff / 2, desired_h-h-hdiff / 2), (0,0), (0,0)]
+        # If height is smaller than it is, then pad left/right
+        elif desired_h < h:
+            desired_w = int(h / ratio)
+            wdiff = int(desired_w - w)
+            pad_list = [(0,0), (wdiff / 2, desired_w-w-wdiff / 2), (0,0)]
+        elif desired_h == h:
+            return img
+        return np.pad(img, pad_list, 'constant', constant_values=np.min(img))
