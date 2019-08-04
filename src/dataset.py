@@ -1,5 +1,6 @@
 import numpy as np
 import torch
+from PIL import Image
 from torch.utils.data import Dataset
 from torchvision.datasets.folder import pil_loader
 
@@ -66,4 +67,4 @@ class ImageDataset(Dataset):
         elif desired_h == h:
             return img
         print(pad_list)
-        return np.pad(img, pad_list, 'constant', constant_values=np.min(img))
+        return Image.fromarray(np.pad(img, pad_list, 'constant', constant_values=np.min(img)))
