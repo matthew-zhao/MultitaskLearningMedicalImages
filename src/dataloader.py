@@ -112,6 +112,7 @@ class MURALoader(BaseDataLoader):
         # mean, std0, std1 = calculate_mean_and_stddev(data_task_list, rescale_size, self.phase)
         if train:
             data_transform = transforms.Compose([
+                transforms.ToPILImage(),
                 transforms.Resize((rescale_size, rescale_size)),
                 #transforms.RandomResizedCrop(rescale_size),
                 transforms.RandomHorizontalFlip(0.3),
@@ -121,6 +122,7 @@ class MURALoader(BaseDataLoader):
             ])
         else:
             data_transform = transforms.Compose([
+                transforms.ToPILImage(),
                 transforms.Resize((rescale_size, rescale_size)),
                 transforms.ToTensor(),
                 transforms.Normalize([0.20174034, 0.20174034, 0.20174034], [0.1777517, 0.1777517, 0.1777517])
