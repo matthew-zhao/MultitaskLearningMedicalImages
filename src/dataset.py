@@ -57,12 +57,13 @@ class ImageDataset(Dataset):
         # If the height should be greater than it is, then pad top/bottom
         if desired_h > h:
             hdiff = int(desired_h - h)
-            pad_list = [(hdiff / 2, desired_h-h-hdiff / 2), (0,0), (0,0)]
+            pad_list = [(hdiff // 2, desired_h-h-(hdiff // 2)), (0,0), (0,0)]
         # If height is smaller than it is, then pad left/right
         elif desired_h < h:
             desired_w = int(h / ratio)
             wdiff = int(desired_w - w)
-            pad_list = [(0,0), (wdiff / 2, desired_w-w-wdiff / 2), (0,0)]
+            pad_list = [(0,0), (wdiff // 2, desired_w-w-(wdiff // 2)), (0,0)]
         elif desired_h == h:
             return img
+        print(pad_list)
         return np.pad(img, pad_list, 'constant', constant_values=np.min(img))
