@@ -50,6 +50,7 @@ class ImageDataset(Dataset):
         # Default is ratio=1 aka pad to create square image
         ratio = float(ratio)
         # Given ratio, what should the height be given the width?
+        img = np.array(img)
         h, w = img.shape[:2]
         print(h, w)
         desired_h = int(w * ratio)
