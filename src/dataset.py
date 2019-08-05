@@ -60,9 +60,9 @@ class ImageDataset(Dataset):
         """ Preprocess an input image. """
         # assume image is RGB
         img = np.array(img)
-        print(img.shape)
+        #print(img.shape)
         img = img[..., ::-1].astype('float32')
-        print(img.shape)
+        #print(img.shape)
         img_min = float(np.min(img)) ; img_max = float(np.max(img))
         img_range = img_max - img_min
         if img_range == 0: img_range = 1.
