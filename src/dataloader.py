@@ -121,7 +121,7 @@ class MURALoader(BaseDataLoader):
 
             second_data_transform = transforms.Compose([
                 transforms.ToTensor(),
-                transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+                #transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
             ])
         else:
             data_transform = transforms.Compose([
@@ -131,7 +131,7 @@ class MURALoader(BaseDataLoader):
 
             second_data_transform = transforms.Compose([
                 transforms.ToTensor(),
-                transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+                #transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
             ])
         
         image_datasets = [ImageDataset(data[self.phase], transform=data_transform, second_transform=second_data_transform) for data in data_task_list]
