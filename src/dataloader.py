@@ -115,20 +115,26 @@ class MURALoader(BaseDataLoader):
                 transforms.ToPILImage(),
                 transforms.Resize((rescale_size, rescale_size)),
                 #transforms.RandomResizedCrop(rescale_size),
-                transforms.RandomHorizontalFlip(0.3),
-                transforms.RandomRotation(30),
+                transforms.RandomHorizontalFlip(0.5),
+                transforms.RandomRotation(30)
+            ])
+
+            second_data_transform = transforms.Compose([
                 transforms.ToTensor(),
-                transforms.Normalize([0.20579669, 0.20579669, 0.20579669], [0.17244643, 0.17244643, 0.17244643])
+                transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
             ])
         else:
             data_transform = transforms.Compose([
                 transforms.ToPILImage(),
-                transforms.Resize((rescale_size, rescale_size)),
+                transforms.Resize((rescale_size, rescale_size))
+            ])
+
+            second_data_transform = transforms.Compose([
                 transforms.ToTensor(),
-                transforms.Normalize([0.20174034, 0.20174034, 0.20174034], [0.1777517, 0.1777517, 0.1777517])
+                transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
             ])
         
-        image_datasets = [ImageDataset(data[self.phase], transform=data_transform) for data in data_task_list]
+        image_datasets = [ImageDataset(data[self.phase], transform=data_transform, second_transform=second_data_transform) for data in data_task_list]
         samplers = None
         if sample_with_replacement:
             samplers = [ReplacementRandomSampler(image_dataset, num_minibatches * batch_size) for image_dataset in image_datasets]

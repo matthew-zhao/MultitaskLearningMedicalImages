@@ -17,7 +17,7 @@ class CustomDataset(Dataset):
 class ImageDataset(Dataset):
     """training dataset."""
 
-    def __init__(self, df, transform=None):
+    def __init__(self, df, transform=None, second_transform=None):
         """
         Args:
             df (pd.DataFrame): a pandas DataFrame with image path and labels.
@@ -26,6 +26,7 @@ class ImageDataset(Dataset):
         """
         self.df = df
         self.transform = transform
+        self.second_transform = second_transform
 
     def __len__(self):
         return len(self.df)
@@ -38,13 +39,28 @@ class ImageDataset(Dataset):
         labels = []
         for i in range(count):
             image = pil_loader(study_path + 'image%s.png' % (i+1))
-            #print(self.transform(image).shape)
-            #image = self.transform(image)
-            images.append(self.transform(self.pad_image(image)))
+            padded_image = self.pad_image(image)
+            augmented_image = self.transform(padded_image)
+            # subtract mean of image and divide by (max - min) range
+            preprocessed_image = self.preprocess_input(augmented_image)
+            images.append(self.second_transform(preprocessed_image))
             labels.append(label)
         images = torch.stack(images)
         labels = torch.from_numpy(np.array(labels)).long()
         return images, labels
+
+    def preprocess_input(self, img):
+        """ Preprocess an input image. """
+        # assume image is RGB
+        img = np.array(img)
+        print(img.shape)
+        img = img[..., ::-1].astype('float32')
+        print(img.shape)
+        img_min = float(np.min(img)) ; img_max = float(np.max(img))
+        img_range = img_max - img_min
+        if img_range == 0: img_range = 1.
+        img = (img - img_min) / img_range
+        return img
 
     def pad_image(self, img, ratio=1.):
         # Default is ratio=1 aka pad to create square image
