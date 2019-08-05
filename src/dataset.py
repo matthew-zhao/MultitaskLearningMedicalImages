@@ -43,30 +43,34 @@ class ImageDataset(Dataset):
             augmented_image = self.transform(padded_image)
             # subtract mean of image and divide by (max - min) range
             preprocessed_image = self.preprocess_input(augmented_image)
-            correct_channels_img = self.channels_last_to_first(preprocessed_image)
-            images.append(self.second_transform(correct_channels_img))
+            #preprocessed_image = self.channels_last_to_first(preprocessed_image)
+            images.append(self.second_transform(preprocessed_image))
             labels.append(label)
         images = torch.stack(images)
         labels = torch.from_numpy(np.array(labels)).long()
         return images, labels
 
-    def channels_last_to_first(self, img):
-        """ Move the channels to the first dimension."""
-        img = np.swapaxes(img, 0,2)
-        img = np.swapaxes(img, 1,2)
-        return img
+    #def channels_last_to_first(self, img):
+    #    """ Move the channels to the first dimension."""
+    #    img = np.swapaxes(img, 0,2)
+    #    img = np.swapaxes(img, 1,2)
+    #    return img
 
     def preprocess_input(self, img):
         """ Preprocess an input image. """
         # assume image is RGB
         img = np.array(img)
-        #print(img.shape)
         img = img[..., ::-1].astype('float32')
-        #print(img.shape)
         img_min = float(np.min(img)) ; img_max = float(np.max(img))
         img_range = img_max - img_min
         if img_range == 0: img_range = 1.
         img = (img - img_min) / img_range
+        #img[..., 0] -= 0.485
+        #img[..., 1] -= 0.456
+        #img[..., 2] -= 0.406
+        #img[..., 0] /= 0.229
+        #img[..., 1] /= 0.224
+        #img[..., 2] /= 0.225
         return img
 
     def pad_image(self, img, ratio=1.):
