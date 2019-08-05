@@ -43,11 +43,18 @@ class ImageDataset(Dataset):
             augmented_image = self.transform(padded_image)
             # subtract mean of image and divide by (max - min) range
             preprocessed_image = self.preprocess_input(augmented_image)
-            images.append(self.second_transform(preprocessed_image))
+            correct_channels_img = self.channels_last_to_first(preprocessed_image)
+            images.append(self.second_transform(correct_channels_img))
             labels.append(label)
         images = torch.stack(images)
         labels = torch.from_numpy(np.array(labels)).long()
         return images, labels
+
+    def channels_last_to_first(self, img):
+        """ Move the channels to the first dimension."""
+        img = np.swapaxes(img, 0,2)
+        img = np.swapaxes(img, 1,2)
+        return img
 
     def preprocess_input(self, img):
         """ Preprocess an input image. """
