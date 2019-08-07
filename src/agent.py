@@ -175,14 +175,43 @@ class MultiTaskSeparateAgent(BaseAgent):
         self.models = [model.to(self.device) for model in Model(num_tasks=num_classes, pretrained_model=model, input_size=input_size)]
 
 
-    def train(self, criterions, train_data, test_data, num_phases=50, save_history=False, save_path='.', verbose=False):
+    def train_head(self, criterions, train_data, num_head_phases=5):
+        for model in self.models:
+            model.decoder.train()
+
+        #optimizers = [optim.SGD(model.parameters(), lr=0.001) for model in self.models]
+        optimizers = [torch.optim.Adam(model.decoder.parameters()) for model in self.models]
+
+        for phase in range(num_head_phases):
+            num_batches = 0
+            #prev_task = 0
+            for inputs, labels, task in train_data.get_loader(prob=self.task_prob if self.task_prob else 'uniform'):
+                # if task != prev_task:
+                #     prev_task = task
+                model = self.models[task]
+                optimizer = optimizers[task]
+                criterion = criterions[task]
+
+                inputs, labels = inputs.to(self.device), labels.to(self.device)
+                outputs = model(inputs)
+                loss = criterion(outputs, labels)
+
+                optimizer.zero_grad()
+                loss.backward()
+                optimizer.step()
+                num_batches += 1
+
+            print(num_batches)
+
+
+    def train(self, criterions, train_data, test_data, num_phases=20, save_history=False, save_path='.', verbose=False):
         for model in self.models:
             model.train()
 
         #optimizers = [optim.SGD(model.parameters(), lr=0.001) for model in self.models]
-        optimizers = [torch.optim.Adam(model.parameters(), lr=0.0001) for model in self.models]
+        optimizers = [torch.optim.Adam(model.parameters(), lr=0.0001, weight_decay=1e-6) for model in self.models]
         schedulers = [torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer,
-            mode='max', factor=0.5, threshold=1e-3, threshold_mode='abs', patience=0, verbose=True) for optimizer in optimizers]
+            mode='max', factor=0.5, threshold=1e-3, threshold_mode='abs', patience=1, verbose=True) for optimizer in optimizers]
         accuracy = []
 
         for phase in range(num_phases):

@@ -55,7 +55,7 @@ def get_count(df, cat):
     '''
     return df[df['Path'].str.contains(cat)]['Count'].sum()
 
-def train_and_evaluate_model(pretrained_model, num_phases, batch_size, num_classes, input_size, base_dir, 
+def train_and_evaluate_model(pretrained_model, num_phases, num_head_phases, batch_size, num_classes, input_size, base_dir, 
         num_minibatches, sample_with_replacement, study_type):
     model_name = pretrained_model
     model = pretrainedmodels.__dict__[model_name](num_classes=1000, pretrained='imagenet', drop_rate=0.2)
@@ -85,6 +85,10 @@ def train_and_evaluate_model(pretrained_model, num_phases, batch_size, num_class
     criterions = [nn.CrossEntropyLoss(weight=torch.cat((Wt0['train'], Wt1['train']), 0)) for Wt1, Wt0 in zip(Wt1_list, Wt0_list)]
 
     agent = MultiTaskSeparateAgent(num_classes=num_classes_multi, model=model, input_size=input_size)
+    agent.train_head(criterions=criterions,
+                        train_data=train_data,
+                        num_head_phases=num_head_phases
+                )
     agent.train(criterions=criterions,
                     train_data=train_data,
                     test_data=test_data,
@@ -97,7 +101,8 @@ def train_and_evaluate_model(pretrained_model, num_phases, batch_size, num_class
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--pretrained_model', '-w', default='densenet121', help='type of torchvision model used for pretrained weights')
-    parser.add_argument('--num_phases', '-p', default=5, help='number of phases to train on')
+    parser.add_argument('--num_phases', '-p', default=10, help='number of phases to train on')
+    parser.add_argument('--num_head_phases', '-h', default=5, help='number of phases to train last classifier layer on')
     parser.add_argument('--batch_size', '-b', default=16, help='set the batch size')
     parser.add_argument('--num_classes', '-c',default=2, help='the number of classes each task has')
     parser.add_argument('--input_size', '-i', default=224, help='the size of the images to rescale to')
@@ -118,7 +123,7 @@ def main():
         else:
             func_arguments[key] = value
 
-    train_and_evaluate_model(func_arguments['pretrained_model'], int(func_arguments['num_phases']), int(func_arguments['batch_size']),
+    train_and_evaluate_model(func_arguments['pretrained_model'], int(func_arguments['num_phases']), int(func_arguments(['num_head_phases']), int(func_arguments['batch_size']),
         int(func_arguments['num_classes']), int(func_arguments['input_size']), func_arguments['base_dir'], int(func_arguments['num_minibatches']),
         func_arguments['sample_with_replacement'], func_arguments['study_type'])
 
