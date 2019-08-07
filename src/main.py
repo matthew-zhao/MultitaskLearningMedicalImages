@@ -102,7 +102,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--pretrained_model', '-w', default='densenet121', help='type of torchvision model used for pretrained weights')
     parser.add_argument('--num_phases', '-p', default=10, help='number of phases to train on')
-    parser.add_argument('--num_head_phases', '-h', default=5, help='number of phases to train last classifier layer on')
+    parser.add_argument('--num_head_phases', '-f', default=5, help='number of phases to train last classifier layer on')
     parser.add_argument('--batch_size', '-b', default=16, help='set the batch size')
     parser.add_argument('--num_classes', '-c',default=2, help='the number of classes each task has')
     parser.add_argument('--input_size', '-i', default=224, help='the size of the images to rescale to')
