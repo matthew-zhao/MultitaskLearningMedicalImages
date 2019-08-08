@@ -114,9 +114,12 @@ class MURALoader(BaseDataLoader):
             data_transform = transforms.Compose([
                 transforms.ToPILImage(),
                 transforms.Resize((rescale_size, rescale_size)),
-                #transforms.RandomResizedCrop(rescale_size),
                 transforms.RandomHorizontalFlip(0.5),
-                transforms.RandomRotation(30)
+                transforms.RandomApply([
+                    transforms.RandomAffine(10, translate=(0.0625, -0.0625), scale=(-0.15, 0.15)),
+                ], p=0.5),
+                #transforms.RandomResizedCrop(rescale_size),
+                #transforms.RandomRotation(30)
             ])
 
             second_data_transform = transforms.Compose([
