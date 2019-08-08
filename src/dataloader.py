@@ -116,7 +116,7 @@ class MURALoader(BaseDataLoader):
                 transforms.Resize((rescale_size, rescale_size)),
                 transforms.RandomHorizontalFlip(0.5),
                 transforms.RandomApply([
-                    transforms.RandomAffine(10, translate=(0.0625, 0.0625), scale=(1e-10, 0.15)),
+                    transforms.RandomAffine(10, translate=(0.0625, 0.0625), scale=(0.85, 1.15)),
                 ], p=0.5),
                 #transforms.RandomResizedCrop(rescale_size),
                 #transforms.RandomRotation(30)
