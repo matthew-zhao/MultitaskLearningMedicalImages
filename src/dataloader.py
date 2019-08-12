@@ -136,7 +136,7 @@ class MURALoader(BaseDataLoader):
                     RandomContrast(),
                     RandomBrightness(),
                 ], p=0.5)
-            ], p=p)
+            ], p=0.5)
 
             second_data_transform = transforms.Compose([
                 transforms.ToTensor(),
