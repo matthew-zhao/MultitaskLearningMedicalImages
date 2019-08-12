@@ -42,7 +42,7 @@ class ImageDataset(Dataset):
             image = pil_loader(study_path + 'image%s.png' % (i+1))
             padded_image = self.pad_image(image)
             augmented_image = self.transform(padded_image)
-            further_aug_image = self.albumentations_transforms(augmented_image)['image']
+            further_aug_image = self.albumentations_transforms(image=augmented_image)['image']
             # subtract mean of image and divide by (max - min) range
             preprocessed_image = self.preprocess_input(further_aug_image)
             #preprocessed_image = self.channels_last_to_first(preprocessed_image)
