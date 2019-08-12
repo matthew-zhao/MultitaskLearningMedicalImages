@@ -42,9 +42,12 @@ class ImageDataset(Dataset):
             image = pil_loader(study_path + 'image%s.png' % (i+1))
             padded_image = self.pad_image(image)
             augmented_image = self.transform(padded_image)
-            further_aug_image = self.albumentations_transforms(image=augmented_image)['image']
+            if self.albumentations_transforms:
+                augmented_image = self.albumentations_transforms(image=np.array(augmented_image))['image']
+            else:
+                augmented_image = np.array(augmented_image)
             # subtract mean of image and divide by (max - min) range
-            preprocessed_image = self.preprocess_input(further_aug_image)
+            preprocessed_image = self.preprocess_input(augmented_image)
             #preprocessed_image = self.channels_last_to_first(preprocessed_image)
             images.append(self.second_transform(preprocessed_image))
             labels.append(label)
@@ -61,7 +64,6 @@ class ImageDataset(Dataset):
     def preprocess_input(self, img):
         """ Preprocess an input image. """
         # assume image is RGB
-        img = np.array(img)
         img = img[..., ::-1].astype('float32')
         img_min = float(np.min(img)) ; img_max = float(np.max(img))
         img_range = img_max - img_min
