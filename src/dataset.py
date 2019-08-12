@@ -17,7 +17,7 @@ class CustomDataset(Dataset):
 class ImageDataset(Dataset):
     """training dataset."""
 
-    def __init__(self, df, transform=None, second_transform=None):
+    def __init__(self, df, transform=None, second_transform=None, albumentations_transforms=None):
         """
         Args:
             df (pd.DataFrame): a pandas DataFrame with image path and labels.
@@ -26,6 +26,7 @@ class ImageDataset(Dataset):
         """
         self.df = df
         self.transform = transform
+        self.albumentations_transforms = albumentations_transforms
         self.second_transform = second_transform
 
     def __len__(self):
@@ -41,8 +42,9 @@ class ImageDataset(Dataset):
             image = pil_loader(study_path + 'image%s.png' % (i+1))
             padded_image = self.pad_image(image)
             augmented_image = self.transform(padded_image)
+            further_aug_image = self.albumentations_transforms(augmented_image)['image']
             # subtract mean of image and divide by (max - min) range
-            preprocessed_image = self.preprocess_input(augmented_image)
+            preprocessed_image = self.preprocess_input(further_aug_image)
             #preprocessed_image = self.channels_last_to_first(preprocessed_image)
             images.append(self.second_transform(preprocessed_image))
             labels.append(label)

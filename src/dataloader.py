@@ -3,6 +3,9 @@ import torch
 from torch.utils.data import DataLoader
 from torchvision import transforms
 
+from albumentations import (
+    Compose, OneOf, HorizontalFlip, ShiftScaleRotate, JpegCompression, Blur, CLAHE, RandomGamma, RandomContrast, RandomBrightness, Resize, PadIfNeeded
+)
 from replacement_random_sampler import ReplacementRandomSampler
 from dataset import CustomDataset, ImageDataset
 
@@ -122,6 +125,19 @@ class MURALoader(BaseDataLoader):
                 #transforms.RandomRotation(30)
             ])
 
+            albumentations_transforms = Compose([
+                OneOf([
+                    JpegCompression(quality_lower=80),
+                    Blur(),
+                ], p=0.5),
+                OneOf([
+                    CLAHE(),
+                    RandomGamma(),
+                    RandomContrast(),
+                    RandomBrightness(),
+                ], p=0.5)
+            ], p=p)
+
             second_data_transform = transforms.Compose([
                 transforms.ToTensor(),
                 transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
@@ -132,12 +148,15 @@ class MURALoader(BaseDataLoader):
                 transforms.Resize((rescale_size, rescale_size))
             ])
 
+            albumentations_transforms = None
+
             second_data_transform = transforms.Compose([
                 transforms.ToTensor(),
                 transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
             ])
         
-        image_datasets = [ImageDataset(data[self.phase], transform=data_transform, second_transform=second_data_transform) for data in data_task_list]
+        image_datasets = [ImageDataset(data[self.phase], transform=data_transform, second_transform=second_data_transform, albumentations_transforms=albumentations_transforms) \
+            for data in data_task_list]
         samplers = None
         if sample_with_replacement:
             samplers = [ReplacementRandomSampler(image_dataset, num_minibatches * batch_size) for image_dataset in image_datasets]
