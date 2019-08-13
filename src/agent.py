@@ -286,17 +286,19 @@ class MultiTaskSeparateAgent(BaseAgent):
             for model in self.models:
                 model.eval()
 
+            valid_loss = 0.
             for inputs, labels, task in data.get_loader():
                 model = self.models[task]
                 inputs, labels = inputs.to(self.device), labels.to(self.device)
                 outputs = model(inputs)
+                #loss = self.criterion(outputs, labels)
+                #valid_loss += loss.item()
                 # average across views
                 # _, per_view_predict_labels = torch.max(outputs.detach(), 1)
 
                 output_avg_views = torch.mean(sigmoid(outputs).detach(), 0, keepdim=True)
-                _, predict_labels = torch.max(output_avg_views, 1)
-                #print(predict_labels, type(predict_labels))
-                #print(labels, type(labels))
+                # _, predict_labels = torch.max(output_avg_views, 1)
+                predict_labels = output_avg_views[:,1]
                 y_true_across_batches.append(labels)
                 y_predict_across_batches.append(predict_labels)
 
