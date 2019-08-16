@@ -159,7 +159,7 @@ class MURALoader(BaseDataLoader):
             for data in data_task_list]
         samplers = None
         if sample_with_replacement:
-            samplers = [ReplacementRandomSampler(image_dataset, num_minibatches * batch_size) for image_dataset in image_datasets]
+            samplers = [ReplacementRandomSampler(image_dataset) for image_dataset in image_datasets]
             if self.phase == 'train':
                 self.dataloaders = [TrainViewDataLoader(dataset,
                                      batch_size=batch_size,
