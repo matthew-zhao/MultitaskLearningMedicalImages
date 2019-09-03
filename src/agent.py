@@ -247,7 +247,8 @@ class MultiTaskSeparateAgent(BaseAgent):
 
                 area_under_curve = roc_auc_score(y_trues.cpu().numpy(), y_predicts.cpu().numpy())
 
-            fpr, tpr, thresholds, auc, fpr_per_task, tpr_per_task, thresholds_per_task, auc_per_task = self.eval(test_data, last_phase=(phase == num_phases - 1))
+            last_phase = True if phase == (num_phases - 1) else False
+            fpr, tpr, thresholds, auc, fpr_per_task, tpr_per_task, thresholds_per_task, auc_per_task = self.eval(test_data, last_phase=last_phase)
             for scheduler in schedulers:
                 scheduler.step(auc)
             accuracy.append(auc)
@@ -324,8 +325,8 @@ class MultiTaskSeparateAgent(BaseAgent):
                     y_true_per_task[task].append(labels)
                     y_predict_per_task[task].append(predict_labels)
                 else:
-                    y_true_per_task = [labels]
-                    y_predict_per_task = [predict_labels]
+                    y_true_per_task[task] = [labels]
+                    y_predict_per_task[task] = [predict_labels]
 
                 #total[task] += labels.size(0)
                 #correct[task] += (per_view_predict_labels == labels).sum().item()
