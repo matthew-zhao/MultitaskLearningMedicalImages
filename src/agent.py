@@ -3,7 +3,7 @@ import torch.nn as nn
 import json, os
 from torch.nn.functional import softmax, relu, avg_pool2d, sigmoid
 
-from sklearn.metrics import roc_auc_score
+from sklearn.metrics import roc_auc_score, roc_curve, auc
 
 from model2 import Model
 
@@ -185,7 +185,7 @@ class MultiTaskSeparateAgent(BaseAgent):
         for phase in range(num_head_phases):
             num_batches = 0
             #prev_task = 0
-            for inputs, labels, task in train_data.get_loader(prob=self.task_prob if self.task_prob else 'uniform'):
+            for inputs, labels, task, study_type in train_data.get_loader(prob=self.task_prob if self.task_prob else 'uniform'):
                 # if task != prev_task:
                 #     prev_task = task
                 model = self.models[task]
@@ -219,7 +219,7 @@ class MultiTaskSeparateAgent(BaseAgent):
             #prev_task = 0
             y_true_across_batches = []
             y_predict_across_batches = []
-            for inputs, labels, task in train_data.get_loader(prob=self.task_prob if self.task_prob else 'uniform'):
+            for inputs, labels, task, study_type in train_data.get_loader(prob=self.task_prob if self.task_prob else 'uniform'):
                 # if task != prev_task:
                 #     prev_task = task
                 model = self.models[task]
@@ -235,7 +235,9 @@ class MultiTaskSeparateAgent(BaseAgent):
                 optimizer.step()
                 num_batches += 1
 
-                _, predict_labels = torch.max(sigmoid(outputs).detach(), 1)
+                #_, predict_labels = torch.max(sigmoid(outputs).detach(), 1)
+                sigmoid_output = sigmoid(outputs).detach()
+                predict_labels = sigmoid_output[:,1]
                 y_true_across_batches.append(labels)
                 y_predict_across_batches.append(predict_labels)
 
@@ -245,16 +247,29 @@ class MultiTaskSeparateAgent(BaseAgent):
 
                 area_under_curve = roc_auc_score(y_trues.cpu().numpy(), y_predicts.cpu().numpy())
 
-            val_accuracy = self.eval(test_data)
+            fpr, tpr, thresholds, auc, fpr_per_task, tpr_per_task, thresholds_per_task, auc_per_task = self.eval(test_data, last_phase=(phase == num_phases - 1))
             for scheduler in schedulers:
-                scheduler.step(val_accuracy[0])
-            accuracy.append(val_accuracy)
+                scheduler.step(auc)
+            accuracy.append(auc)
 
             print(num_batches)
 
             if verbose:
                 print('[Phase {}] Training AUC: {}'.format(phase+1, area_under_curve))
                 print('[Phase {}] Validation AUC: {}'.format(phase+1, accuracy[-1]))
+
+                for task, auc in auc_per_task.items():
+                    print('[Phase {}] [Task {}] Validation AUC: {}'.format(phase+1, task, auc))
+
+            if fpr and tpr:
+                print('False Positive Rates: {}'.format(fpr))
+                print('True Positive Rates: {}'.format(tpr))
+
+            for task in fpr_per_task:
+                task_fpr = fpr_per_task[task]
+                task_tpr = tpr_per_task[task]
+                print('[Task {}] False Positive Rates: {}'.format(task, task_fpr))
+                print('[Task {}] True Positive Rates: {}'.format(task, task_tpr))
 
         if save_history:
             self._save_history(accuracy, save_path)
@@ -271,23 +286,24 @@ class MultiTaskSeparateAgent(BaseAgent):
                 json.dump(h, f)
 
 
-    def eval(self, data):
+    def eval(self, data, last_phase=False):
         correct = [0 for _ in range(self.num_tasks)]
         total = [0 for _ in range(self.num_tasks)]
 
         y_true_across_batches = []
         y_predict_across_batches = []
 
+        y_true_per_task = {}
+        y_predict_per_task = {}
+
         prev_task = 0
 
         with torch.no_grad():
-            #for t, model in enumerate(self.models):
-            # letting model know it's eval time
             for model in self.models:
                 model.eval()
 
             valid_loss = 0.
-            for inputs, labels, task in data.get_loader():
+            for inputs, labels, task, study_type in data.get_loader():
                 model = self.models[task]
                 inputs, labels = inputs.to(self.device), labels.to(self.device)
                 outputs = model(inputs)
@@ -302,6 +318,15 @@ class MultiTaskSeparateAgent(BaseAgent):
                 y_true_across_batches.append(labels)
                 y_predict_across_batches.append(predict_labels)
 
+                # scalable to ensure that this only applies to MURA (?)
+                task = study_type if study_type else task
+                if task in y_true_per_task and task in y_predict_per_task:
+                    y_true_per_task[task].append(labels)
+                    y_predict_per_task[task].append(predict_labels)
+                else:
+                    y_true_per_task = [labels]
+                    y_predict_per_task = [predict_labels]
+
                 #total[task] += labels.size(0)
                 #correct[task] += (per_view_predict_labels == labels).sum().item()
 
@@ -309,14 +334,28 @@ class MultiTaskSeparateAgent(BaseAgent):
                 y_predicts = torch.cat(y_predict_across_batches)
                 y_trues = torch.cat(y_true_across_batches)
 
+                fpr, tpr, thresholds = roc_curve(y_trues.cpu().numpy(), y_predicts.cpu().numpy()) if last_phase else (None, None, None)
                 area_under_curve = roc_auc_score(y_trues.cpu().numpy(), y_predicts.cpu().numpy())
+
+            fpr_per_task = {}
+            tpr_per_task = {}
+            thresholds_per_task = {}
+            auc_per_task = {}
+            if len(y_predict_per_task) > 0:
+                for task in y_predict_per_task:
+                    y_predicts = torch.cat(y_predict_per_task[task])
+                    y_trues = torch.cat(y_true_per_task[task])
+
+                    if last_phase:
+                        fpr_per_task[task], tpr_per_task[task], thresholds_per_task[task] = roc_curve(y_trues.cpu().numpy(), y_predicts.cpu().numpy())
+                    auc_per_task[task] = roc_auc_score(y_trues.cpu().numpy(), y_predicts.cpu().numpy())
 
             # letting model know it's back to training time
             for model in self.models:
                 model.train()
 
             #return [c / t for c, t in zip(correct, total)]
-            return [area_under_curve]
+            return fpr, tpr, thresholds, area_under_curve, fpr_per_task, tpr_per_task, thresholds_per_task, auc_per_task
 
 
     def save_model(self, save_path='.'):

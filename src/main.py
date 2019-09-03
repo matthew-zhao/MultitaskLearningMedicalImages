@@ -40,7 +40,7 @@ def get_study_level_data(study_type, base_dir, data_cat):
                 dir_wo_hidden = [file for file in os.listdir(path) if not file.startswith(".")]
                 study_data[phase].loc[i] = [path, len(dir_wo_hidden), label] # add new row
                 i+=1
-    return study_data
+    return study_type, study_data
 
 def n_p(x):
     '''convert numpy float to Variable tensor float'''
@@ -77,8 +77,8 @@ def train_and_evaluate_model(pretrained_model, num_phases, num_head_phases, batc
     num_classes_multi = train_data.num_classes_multi(num_tasks=1 if study_type else len(study_types))
     num_channels = train_data.num_channels
 
-    tais = [{x: get_count(study_data[x], 'positive') for x in data_cat} for study_data in data_task_list]
-    tnis = [{x: get_count(study_data[x], 'negative') for x in data_cat} for study_data in data_task_list]
+    tais = [{x: get_count(study_data[x], 'positive') for x in data_cat} for study_type, study_data in data_task_list]
+    tnis = [{x: get_count(study_data[x], 'negative') for x in data_cat} for study_type, study_data in data_task_list]
     Wt0_list = [{x: (np.log(float(tnis[i][x] + tais[i][x]) / tnis[i][x]) + 1) for x in data_cat} for i in range(len(data_task_list))]
     Wt1_list = [{x: (np.log(float(tnis[i][x] + tais[i][x]) / tais[i][x]) + 1) for x in data_cat} for i in range(len(data_task_list))]
     Wt0_list = [{x: n_p(Wt0['train'] / (Wt0['train'] + Wt1['train'])) for x in data_cat} for Wt1, Wt0 in zip(Wt1_list, Wt0_list)]

@@ -155,34 +155,34 @@ class MURALoader(BaseDataLoader):
                 transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
             ])
         
-        image_datasets = [ImageDataset(data[self.phase], transform=data_transform, second_transform=second_data_transform, albumentations_transforms=albumentations_transforms) \
-            for data in data_task_list]
+        image_datasets = {study_type: ImageDataset(data[self.phase], transform=data_transform, second_transform=second_data_transform, albumentations_transforms=albumentations_transforms) \
+            for study_type, data in data_task_list}
         samplers = None
         if sample_with_replacement:
-            samplers = [ReplacementRandomSampler(image_dataset) for image_dataset in image_datasets]
+            samplers = {study_type: ReplacementRandomSampler(image_dataset) for study_type, image_dataset in image_datasets.items()}
             if self.phase == 'train':
-                self.dataloaders = [TrainViewDataLoader(dataset,
+                self.dataloaders = {study_type: TrainViewDataLoader(image_datasets[study_type],
                                      batch_size=batch_size,
                                      shuffle=False,
                                      drop_last=drop_last,
-                                     sampler=sampler) for dataset, sampler in zip(image_datasets, samplers)]
+                                     sampler=samplers[study_type]) for study_type in image_datasets}
             else:
-                self.dataloaders = [TestViewDataLoader(dataset,
+                self.dataloaders = {study_type: TestViewDataLoader(image_datasets[study_type],
                                      batch_size=batch_size,
                                      shuffle=False,
                                      drop_last=drop_last,
-                                     sampler=sampler) for dataset, sampler in zip(image_datasets, samplers)]
+                                     sampler=samplers[study_type]) for study_type in image_datasets}
         else:
             if self.phase == 'train':
-                self.dataloaders = [TrainViewDataLoader(dataset,
+                self.dataloaders = {study_type: TrainViewDataLoader(dataset,
                                      batch_size=batch_size,
                                      shuffle=True,
-                                     drop_last=drop_last) for dataset in image_datasets]
+                                     drop_last=drop_last) for study_type, dataset in image_datasets.items()}
             else:
-                self.dataloaders = [TestViewDataLoader(dataset,
+                self.dataloaders = {study_type: TestViewDataLoader(dataset,
                                      batch_size=batch_size,
                                      shuffle=shuffle,
-                                     drop_last=drop_last) for dataset in image_datasets]
+                                     drop_last=drop_last) for study_type, dataset in image_datasets.items()}
         # replace with None if this doesn't work
         self.task_dataloader = self.dataloaders
 
@@ -247,9 +247,12 @@ class MURALoader(BaseDataLoader):
         return [2 for _ in range(num_tasks)]
 
 class MultiTaskDataLoader:
+    '''
+    dataloaders is a dictionary mapping study_type to dataloader
+    '''
     def __init__(self, dataloaders, phase, prob='uniform'):
         self.dataloaders = dataloaders
-        self.iters = [iter(loader) for loader in self.dataloaders]
+        self.iters = [(study_type, iter(dataloader)) for study_type, dataloader in self.dataloaders.items()]
 
         if prob == 'uniform':
             self.prob = np.ones(len(self.dataloaders)) / len(self.dataloaders)
@@ -282,7 +285,8 @@ class MultiTaskDataLoader:
 
         # if self.phase != 'train' or self.views_remaining == 0:
         try:
-            data, labels = self.iters[self.task].__next__()
+            study_type, loader_iter = self.iters[self.task]
+            data, labels = loader_iter.__next__()
         except StopIteration:
             # Uncomment below if we want to choose a random task per batch
             # self.iters[self.task] = iter(self.dataloaders[self.task])
@@ -290,11 +294,12 @@ class MultiTaskDataLoader:
                 #print("StopIter raised because of task greater than iters")
                 raise StopIteration
             self.task += 1
-            data, labels = self.iters[self.task].__next__()
+            study_type, loader_iter = self.iters[self.task]
+            data, labels = loader_iter.__next__()
         # self.views_remaining = list(data.size())[0]
         self.step += 1
         # self.views_remaining -= 1
         # if self.phase == 'train':
         #     # separate each view in image
         #     data = data[self.views_remaining]
-        return data, labels, self.task
+        return data, labels, self.task, study_type
