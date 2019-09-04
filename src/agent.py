@@ -269,15 +269,15 @@ class MultiTaskSeparateAgent(BaseAgent):
                 print('[Task {}] False Positive Rates: {}'.format(task, task_fpr))
                 print('[Task {}] True Positive Rates: {}'.format(task, task_tpr))
 
-        if save_history:
-            self._save_history(accuracy, save_path)
+        #if save_history:
+        #    self._save_history(accuracy, save_path)
 
 
     def _save_history(self, history, save_path):
         if not os.path.isdir(save_path):
             os.makedirs(save_path)
 
-        for i, h in enumerate(zip(*history)):
+        for i, h in enumerate(history):
             filename = os.path.join(save_path, 'history_class{}.json'.format(i))
 
             with open(filename, 'w') as f:
