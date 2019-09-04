@@ -33,7 +33,7 @@ class SingleTaskAgent(BaseAgent):
         self.model.train()
 
         criterion = nn.CrossEntropyLoss()
-        optimizer = torch.optim.Adam(self.model.parameters(), lr=0.0001)
+        optimizer = torch.optim.Adam(self.model.parameters(), lr=0.0005)
         accuracy = []
 
         for epoch in range(num_epochs):
@@ -179,8 +179,7 @@ class MultiTaskSeparateAgent(BaseAgent):
         for model in self.models:
             model.decoder.train()
 
-        #optimizers = [optim.SGD(model.parameters(), lr=0.001) for model in self.models]
-        optimizers = [torch.optim.Adam(model.decoder.parameters()) for model in self.models]
+        optimizers = [torch.optim.Adam(model.decoder.parameters(), lr=0.0005) for model in self.models]
 
         for phase in range(num_head_phases):
             num_batches = 0
@@ -208,8 +207,7 @@ class MultiTaskSeparateAgent(BaseAgent):
         for model in self.models:
             model.train()
 
-        #optimizers = [optim.SGD(model.parameters(), lr=0.001) for model in self.models]
-        optimizers = [torch.optim.Adam(model.parameters(), lr=0.0001, weight_decay=1e-6) for model in self.models]
+        optimizers = [torch.optim.Adam(model.parameters(), lr=0.0005, weight_decay=1e-6) for model in self.models]
         schedulers = [torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer,
             mode='max', factor=0.5, threshold=1e-3, threshold_mode='abs', patience=1, verbose=True) for optimizer in optimizers]
         accuracy = []
@@ -262,9 +260,8 @@ class MultiTaskSeparateAgent(BaseAgent):
                 for task, auc in auc_per_task.items():
                     print('[Phase {}] [Task {}] Validation AUC: {}'.format(phase+1, task, auc))
 
-            if fpr and tpr:
-                print('False Positive Rates: {}'.format(fpr))
-                print('True Positive Rates: {}'.format(tpr))
+            print('False Positive Rates: {}'.format(fpr))
+            print('True Positive Rates: {}'.format(tpr))
 
             for task in fpr_per_task:
                 task_fpr = fpr_per_task[task]
