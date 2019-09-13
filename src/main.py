@@ -77,14 +77,14 @@ def train_and_evaluate_model(pretrained_model, num_phases, num_head_phases, batc
     num_classes_multi = train_data.num_classes_multi(num_tasks=1 if study_type else len(study_types))
     num_channels = train_data.num_channels
 
-    tais = [{x: get_count(study_data[x], 'positive') for x in data_cat} for study_type, study_data in data_task_list]
-    tnis = [{x: get_count(study_data[x], 'negative') for x in data_cat} for study_type, study_data in data_task_list]
-    Wt0_list = [{x: (np.log(float(tnis[i][x] + tais[i][x]) / tnis[i][x]) + 1) for x in data_cat} for i in range(len(data_task_list))]
-    Wt1_list = [{x: (np.log(float(tnis[i][x] + tais[i][x]) / tais[i][x]) + 1) for x in data_cat} for i in range(len(data_task_list))]
-    Wt0_list = [{x: n_p(Wt0['train'] / (Wt0['train'] + Wt1['train'])) for x in data_cat} for Wt1, Wt0 in zip(Wt1_list, Wt0_list)]
-    Wt1_list = [{x: n_p(Wt1['train'] / (Wt0['train'] + Wt1['train'])) for x in data_cat} for Wt1, Wt0 in zip(Wt1_list, Wt0_list)]
+    tais = {study_type: {x: get_count(study_data[x], 'positive') for x in data_cat} for study_type, study_data in data_task_list}
+    tnis = {study_type: {x: get_count(study_data[x], 'negative') for x in data_cat} for study_type, study_data in data_task_list}
+    Wt0_list = {study_type: {x: (np.log(float(tnis[study_type][x] + tais[study_type][x]) / tnis[study_type][x]) + 1) for x in data_cat} for study_type, study_data in data_task_list}
+    Wt1_list = {study_type: {x: (np.log(float(tnis[study_type][x] + tais[study_type][x]) / tais[study_type][x]) + 1) for x in data_cat} for study_type, study_data in data_task_list}
+    Wt0_weight = {study_type: {x: n_p(Wt0_list[study_type]['train'] / (Wt0_list[study_type]['train'] + Wt1_list[study_type]['train'])) for x in data_cat} for study_type in Wt0_list}
+    Wt1_weight = {study_type: {x: n_p(Wt1_list[study_type]['train'] / (Wt0_list[study_type]['train'] + Wt1_list[study_type]['train'])) for x in data_cat} for study_type in Wt1_list}
 
-    criterions = [nn.CrossEntropyLoss(weight=torch.cat((Wt0['train'], Wt1['train']), 0)) for Wt1, Wt0 in zip(Wt1_list, Wt0_list)]
+    criterions = {study_type: nn.CrossEntropyLoss(weight=torch.cat((Wt0_weight[study_type]['train'], Wt1_weight[study_type]['train']), 0)) for study_type in Wt0_weight}
 
     agent = MultiTaskSeparateAgent(num_classes=num_classes_multi, model=model, input_size=input_size)
     agent.train_head(criterions=criterions,

@@ -189,7 +189,7 @@ class MultiTaskSeparateAgent(BaseAgent):
                 #     prev_task = task
                 model = self.models[task]
                 optimizer = optimizers[task]
-                criterion = criterions[task]
+                criterion = criterions[study_type]
 
                 inputs, labels = inputs.to(self.device), labels.to(self.device)
                 outputs = model(inputs)
@@ -222,7 +222,7 @@ class MultiTaskSeparateAgent(BaseAgent):
                 #     prev_task = task
                 model = self.models[task]
                 optimizer = optimizers[task]
-                criterion = criterions[task]
+                criterion = criterions[study_type]
 
                 inputs, labels = inputs.to(self.device), labels.to(self.device)
                 outputs = model(inputs)
