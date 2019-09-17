@@ -179,7 +179,7 @@ class MultiTaskSeparateAgent(BaseAgent):
         for model in self.models:
             model.decoder.train()
 
-        optimizers = [torch.optim.Adam(model.decoder.parameters(), lr=0.0005) for model in self.models]
+        optimizers = [torch.optim.Adam(model.decoder.parameters(), lr=0.0001) for model in self.models]
 
         for phase in range(num_head_phases):
             num_batches = 0
@@ -207,7 +207,7 @@ class MultiTaskSeparateAgent(BaseAgent):
         for model in self.models:
             model.train()
 
-        optimizers = [torch.optim.Adam(model.parameters(), lr=0.0005, weight_decay=1e-6) for model in self.models]
+        optimizers = [torch.optim.Adam(model.parameters(), lr=0.0001, weight_decay=1e-6) for model in self.models]
         schedulers = [torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer,
             mode='max', factor=0.5, threshold=1e-3, threshold_mode='abs', patience=1, verbose=True) for optimizer in optimizers]
         accuracy = []
