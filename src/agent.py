@@ -5,7 +5,7 @@ from torch.nn.functional import softmax, relu, avg_pool2d, sigmoid
 
 from sklearn.metrics import roc_auc_score, roc_curve, auc
 
-from model import Model
+from model2 import Model
 
 class BaseAgent:
     def __init__(self):
