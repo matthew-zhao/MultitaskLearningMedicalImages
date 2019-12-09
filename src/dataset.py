@@ -5,6 +5,8 @@ from torchvision.datasets.folder import pil_loader
 
 from utils import u_ones, u_multiclass, u_ignore, u_zeros
 
+DEFAULT_UNCERTAINTY_STRATEGY = "u_ones"
+
 class ImageDataset(Dataset):
     """training dataset."""
 
@@ -121,8 +123,6 @@ class ChexpertDataset(ImageDataset):
     #    "edema": u_ones,
     #    "pleural_effusion": u_multiclass
     #}
-
-    DEFAULT_UNCERTAINTY_STRATEGY = "u_ones"
 
     def __init__(self, df, transform=None, second_transform=None, albumentations_transforms=None, uncertainty_strategy=None):
         super().__init__(df, transform, second_transform, albumentations_transforms)
