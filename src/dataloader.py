@@ -14,7 +14,7 @@ class TrainViewDataLoader(DataLoader):
         data_batch = torch.Tensor()
         label_batch = torch.Tensor().long()
         for idx in self.sampler:
-            data, labels = self.dataset[idx]
+            data, labels, _ = self.dataset[idx]
             data_batch = torch.cat([data_batch, data])
             label_batch = torch.cat([label_batch, labels])
             while data_batch.size(0) >= self.batch_size:
@@ -36,7 +36,7 @@ class TestViewDataLoader(DataLoader):
         for idx in self.sampler:
             batch = torch.Tensor()
             batch2 = torch.Tensor().long()
-            data, labels = self.dataset[idx]
+            data, labels, _ = self.dataset[idx]
             index = torch.tensor([0])
             yield torch.cat([batch, data]), torch.index_select(torch.cat([batch2, labels]), 0, index)
 
