@@ -56,16 +56,20 @@ def get_chexpert_data(base_dir, data_cat):
         study_type (string): one of the seven study type folder names in 'train/valid/test' dataset
     """
     study_data = {}
+    parent_dir_of_base_dir = os.path.dirname(os.path.dirname(base_dir)) if base_dir.endswith('/') else os.path.dirname(base_dir)
     for phase in data_cat:
         csv_file = os.path.join(base_dir, phase + '.csv')
         labeled_studies = pd.read_csv(csv_file)
         parent_dirs = []
+        new_paths = []
         for path in labeled_studies['Path']:
             path_parent_dir = os.path.dirname(path)
             parent_dirs.append(path_parent_dir)
+            new_paths.append(os.path.join(parent_dir_of_base_dir,path))
         levels_dict = {_: i for i, _ in enumerate(np.unique(parent_dirs))}
         levels = [levels_dict[_] for _ in parent_dirs]
         labeled_studies['Level'] = levels
+        labeled_studies['Path'] = new_paths
         study_data[phase] = labeled_studies
     return "chexpert", study_data
 

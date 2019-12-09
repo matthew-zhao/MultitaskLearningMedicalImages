@@ -218,21 +218,10 @@ class MultiTaskDataLoader:
         self.task = 0
         # self.phase = phase
 
-        # if this is set to true, we don't call __next__ on iters
-        # self.views_remaining = 0
-        # self.data_label_dict = None
-
-
     def __iter__(self):
         return self
 
-
     def __next__(self):
-        #if self.step >= self.size:
-        #    self.step = 0
-            #print("StopIter raised because of step and size")
-        #    raise StopIteration
-
         # Uncomment below if we want to choose a random task per batch
         #self.task = np.random.choice(list(range(len(self.dataloaders))), p=self.prob)
 
@@ -249,10 +238,5 @@ class MultiTaskDataLoader:
             self.task += 1
             study_type, loader_iter = self.iters[self.task]
             data, labels, level = loader_iter.__next__()
-        # self.views_remaining = list(data.size())[0]
         self.step += 1
-        # self.views_remaining -= 1
-        # if self.phase == 'train':
-        #     # separate each view in image
-        #     data = data[self.views_remaining]
         return data, labels, level, study_type
