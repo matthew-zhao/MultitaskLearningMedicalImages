@@ -13,26 +13,22 @@ class TrainViewDataLoader(DataLoader):
     def __iter__(self):
         data_batch = torch.Tensor()
         label_batch = torch.Tensor().long()
-        level_batch = torch.Tensor().long()
         for idx in self.sampler:
-            data, labels, level = self.dataset[idx]
+            data, labels, _ = self.dataset[idx]
             data_batch = torch.cat([data_batch, data])
             label_batch = torch.cat([label_batch, labels])
-            level_batch = torch.cat([level_batch, level])
             while data_batch.size(0) >= self.batch_size:
                 if data_batch.size(0) == self.batch_size:
-                    yield [data_batch, label_batch, level_batch]
+                    yield [data_batch, label_batch, torch.zeros(1,self.batch_size).long()]
                     data_batch = torch.Tensor()
                     label_batch = torch.Tensor().long()
-                    level_batch = torch.Tensor().long()
                 else:
                     return_data_batch, data_batch = data_batch.split([self.batch_size,data_batch.size(0)-self.batch_size])
                     return_label_batch, label_batch = label_batch.split([self.batch_size,label_batch.size(0)-self.batch_size])
-                    return_level_batch, level_batch = level_batch.split([self.batch_size,level_batch.size(0)-self.batch_size])
-                    yield [return_data_batch, return_label_batch, return_level_batch]
+                    yield [return_data_batch, return_label_batch, torch.zeros(1,self.batch_size).long()]
         if data_batch.size(0) > 0 and not self.drop_last:
             #print("in last if check")
-            yield data_batch, label_batch, level_batch
+            yield data_batch, label_batch, torch.zeros(1,data_batch.size(0)).long()
 
 
 class TestViewDataLoader(DataLoader):
@@ -41,10 +37,10 @@ class TestViewDataLoader(DataLoader):
             batch = torch.Tensor()
             batch2 = torch.Tensor().long()
             batch3 = torch.Tensor().long()
-            data, labels, level = self.dataset[idx]
+            data, labels, _ = self.dataset[idx]
             index = torch.tensor([0])
             yield (torch.cat([batch, data]), torch.index_select(torch.cat([batch2, labels]), 0, index),
-                torch.cat([batch3, level]))
+                   torch.zeros(1, data.size(0)).long())
 
 class BaseDataLoader:
     def __init__(self, batch_size=1, train=True, shuffle=True, drop_last=False):
