@@ -111,7 +111,7 @@ class MURADataset(ImageDataset):
             labels.append(label)
         images = torch.stack(images)
         labels = torch.from_numpy(np.array(labels)).long()
-        return images, labels, torch.from_numpy(np.asarray(0)).long()
+        return images, labels, torch.from_numpy(np.asarray([0])).long()
 
 
 class ChexpertDataset(ImageDataset):
@@ -133,7 +133,7 @@ class ChexpertDataset(ImageDataset):
 
     def __getitem__(self, idx):
         img_path = self.df.iloc[idx, 0]
-        level = torch.from_numpy(np.asarray(self.df.iloc[idx, 19])).long()
+        level = torch.from_numpy(np.asarray([self.df.iloc[idx, 19]])).long()
 
         atelectasis_label = self.uncertainty_strategy(self.df.iloc[idx, 13])
         cardiomegaly_label = self.uncertainty_strategy(self.df.iloc[idx, 7])
