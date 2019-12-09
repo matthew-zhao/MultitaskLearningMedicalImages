@@ -1,0 +1,1 @@
+CHEXPERT_LABEL_ORDERING = ["atelectasis", "cardiomegaly", "consolidation", "edema", "pleural_effusion", "no_finding"]

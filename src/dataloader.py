@@ -7,43 +7,7 @@ from albumentations import (
     Compose, OneOf, HorizontalFlip, ShiftScaleRotate, JpegCompression, Blur, CLAHE, RandomGamma, RandomContrast, RandomBrightness, Resize, PadIfNeeded
 )
 from replacement_random_sampler import ReplacementRandomSampler
-from dataset import CustomDataset, ImageDataset
-
-def calculate_mean_and_stddev(data_task_list, rescale_size, phase):
-    data_transform = transforms.Compose([
-                        transforms.Resize((rescale_size, rescale_size)),
-                        transforms.ToTensor()
-                    ])
-    image_datasets = [ImageDataset(data[phase], transform=data_transform) for data in data_task_list]
-
-    dataloaders = [TrainViewDataLoader(dataset,
-                     batch_size=4096,
-                     shuffle=False,
-                     num_workers=4) for dataset in image_datasets]
-
-    pop_mean = []
-    pop_std0 = []
-    pop_std1 = []
-    for dataloader in dataloaders:
-        for data, label in dataloader:
-            # shape (batch_size, 3, height, width)
-            numpy_image = data.numpy()
-
-            # shape (3,)
-            batch_mean = np.mean(numpy_image, axis=(0,2,3))
-            batch_std0 = np.std(numpy_image, axis=(0,2,3))
-            batch_std1 = np.std(numpy_image, axis=(0,2,3), ddof=1)
-
-            pop_mean.append(batch_mean)
-            pop_std0.append(batch_std0)
-            pop_std1.append(batch_std1)
-
-    # shape (num_iterations, 3) -> (mean across 0th axis) -> shape (3,)
-    pop_mean = np.array(pop_mean).mean(axis=0)
-    pop_std0 = np.array(pop_std0).mean(axis=0)
-    pop_std1 = np.array(pop_std1).mean(axis=0)
-    print(pop_mean, pop_std0, pop_std1)
-    return pop_mean, pop_std0, pop_std1
+from dataset import ImageDataset, MURADataset, ChexpertDataset
 
 class TrainViewDataLoader(DataLoader):
     def __iter__(self):
@@ -53,10 +17,7 @@ class TrainViewDataLoader(DataLoader):
             data, labels = self.dataset[idx]
             data_batch = torch.cat([data_batch, data])
             label_batch = torch.cat([label_batch, labels])
-            #print(data_batch.size(0), self.batch_size)
-            #print(label_batch.size(0))
             while data_batch.size(0) >= self.batch_size:
-                #print("in while loop")
                 if data_batch.size(0) == self.batch_size:
                     yield [data_batch, label_batch]
                     data_batch = torch.Tensor()
@@ -107,12 +68,15 @@ class BaseDataLoader:
     def num_classes_multi(self):
         raise NotImplementedError
 
-class MURALoader(BaseDataLoader):
+class RadiographLoader(BaseDataLoader):
     def __init__(self, data_task_list, batch_size=128, num_minibatches=5, train=True, shuffle=True, drop_last=False, rescale_size=224,
             sample_with_replacement=True):
-        super(MURALoader, self).__init__(batch_size, train, shuffle, drop_last)
+        super(RadiographLoader, self).__init__(batch_size, train, shuffle, drop_last)
         self.phase = 'train' if train else 'valid'
-        # mean, std0, std1 = calculate_mean_and_stddev(data_task_list, rescale_size, self.phase)
+        self._len = 50000 if train else 10000
+        self.batch_size = batch_size
+        self.shuffle = shuffle
+        self.drop_last = drop_last
         if train:
             data_transform = transforms.Compose([
                 transforms.ToPILImage(),
@@ -155,66 +119,45 @@ class MURALoader(BaseDataLoader):
                 transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
             ])
         
-        image_datasets = {study_type: ImageDataset(data[self.phase], transform=data_transform, second_transform=second_data_transform, albumentations_transforms=albumentations_transforms) \
-            for study_type, data in data_task_list}
+        image_datasets = {}
+        for study_type, data in data_task_list:
+            if study_type != 'chexpert':
+                image_datasets[study_type] = MURADataset(data[self.phase], transform=data_transform, second_transform=second_data_transform, albumentations_transforms=albumentations_transforms)
+            else:
+                image_datasets[study_type] = ChexpertDataset(data[self.phase], transform=data_transform, second_transform=second_data_transform, albumentations_transforms=albumentations_transforms)
+
         samplers = None
         if sample_with_replacement:
             samplers = {study_type: ReplacementRandomSampler(image_dataset) for study_type, image_dataset in image_datasets.items()}
-            if self.phase == 'train':
-                self.dataloaders = {study_type: TrainViewDataLoader(image_datasets[study_type],
-                                     batch_size=batch_size,
-                                     shuffle=False,
-                                     drop_last=drop_last,
-                                     sampler=samplers[study_type]) for study_type in image_datasets}
-            else:
-                self.dataloaders = {study_type: TestViewDataLoader(image_datasets[study_type],
-                                     batch_size=batch_size,
-                                     shuffle=False,
-                                     drop_last=drop_last,
-                                     sampler=samplers[study_type]) for study_type in image_datasets}
+            self._create_TaskDataLoaders(image_datasets, samplers=samplers)
         else:
-            if self.phase == 'train':
-                self.dataloaders = {study_type: TrainViewDataLoader(dataset,
-                                     batch_size=batch_size,
-                                     shuffle=True,
-                                     drop_last=drop_last) for study_type, dataset in image_datasets.items()}
-            else:
-                self.dataloaders = {study_type: TestViewDataLoader(dataset,
-                                     batch_size=batch_size,
-                                     shuffle=shuffle,
-                                     drop_last=drop_last) for study_type, dataset in image_datasets.items()}
-        # replace with None if this doesn't work
-        self.task_dataloader = self.dataloaders
+            self._create_TaskDataLoaders(image_datasets)
 
-        self._len = 50000 if train else 10000
-        self.batch_size = batch_size
-        self.shuffle = shuffle
-        self.drop_last = drop_last
         self.sampler_list = samplers if samplers else None
 
-
-    def _create_TaskDataLoaders(self):
-        self.task_dataloader = []
-        sampler_idx = 0
-        for dataloader in self.dataloaders:
-            sampler = self.sampler_list[sampler_idx]
-            images = []
-            labels = []
-            for batch_images, batch_labels in dataloader:
-                for i in batch_images:
-                    images.append(i)
-                for l in batch_labels:
-                    labels.append(l)
-
-            dataset = CustomDataset(data=images.copy(), labels=labels.copy())
-            dataloader = DataLoader(dataset,
-                                    batch_size=self.batch_size,
-                                    shuffle=self.shuffle,
-                                    drop_last=self.drop_last,
-                                    sampler=sampler)
-            self.task_dataloader.append(dataloader)
-            sampler_idx += 1
-
+    def _create_TaskDataLoaders(self, image_datasets, samplers=None):
+        self.dataloaders = {}
+        for study_type, dataset in image_datasets.items():
+            if self.phase == 'train' and study_type != 'chexpert':
+                self.dataloaders[study_type] = TrainViewDataLoader(dataset,
+                                                 batch_size=self.batch_size,
+                                                 shuffle=False if samplers else True,
+                                                 drop_last=self.drop_last,
+                                                 sampler=samplers[study_type] if samplers else None)
+            elif self.phase == 'valid' and study_type != 'chexpert':
+                self.dataloaders[study_type] = TestViewDataLoader(dataset,
+                                                batch_size=self.batch_size,
+                                                shuffle=False if samplers else self.shuffle,
+                                                drop_last=self.drop_last,
+                                                sampler=samplers[study_type] if samplers else None)
+            else:
+                self.dataloaders[study_type] = DataLoader(dataset,
+                                                batch_size=self.batch_size,
+                                                shuffle=False if samplers else self.shuffle,
+                                                drop_last=self.drop_last,
+                                                sampler=samplers[study_type] if samplers else None)
+        # replace with None if this doesn't work
+        self.task_dataloader = self.dataloaders
 
     def get_loader(self, prob='uniform'):
         if self.task_dataloader is None:
@@ -243,8 +186,16 @@ class MURALoader(BaseDataLoader):
     def num_channels(self):
         return 3
 
-    def num_classes_multi(self, num_tasks):
-        return [2 for _ in range(num_tasks)]
+    def num_classes_multi(self, uncertainty_strategy):
+        num_classes_dict = {}
+        for study_type, task_dataloader in self.task_dataloader.items():
+            if study_type != 'chexpert':
+                num_classes_dict[study_type] = 2
+            elif uncertainty_strategy == 'u_multiclass':
+                num_classes_dict[study_type] = 18
+            else:
+                num_classes_dict[study_type] = 6
+        return num_classes_dict
 
 class MultiTaskDataLoader:
     '''
@@ -286,7 +237,7 @@ class MultiTaskDataLoader:
         # if self.phase != 'train' or self.views_remaining == 0:
         try:
             study_type, loader_iter = self.iters[self.task]
-            data, labels = loader_iter.__next__()
+            data, labels, level = loader_iter.__next__()
         except StopIteration:
             # Uncomment below if we want to choose a random task per batch
             # self.iters[self.task] = iter(self.dataloaders[self.task])
@@ -295,11 +246,11 @@ class MultiTaskDataLoader:
                 raise StopIteration
             self.task += 1
             study_type, loader_iter = self.iters[self.task]
-            data, labels = loader_iter.__next__()
+            data, labels, level = loader_iter.__next__()
         # self.views_remaining = list(data.size())[0]
         self.step += 1
         # self.views_remaining -= 1
         # if self.phase == 'train':
         #     # separate each view in image
         #     data = data[self.views_remaining]
-        return data, labels, self.task, study_type
+        return data, labels, level, study_type

@@ -12,15 +12,21 @@ import types
 import matplotlib.pyplot as plt
 import argparse
 
-from dataloader import MURALoader
+from dataloader import RadiographLoader
 from agent import MultiTaskSeparateAgent
+from loss import MaskedBCEWithLogitsLoss
+
+STRATEGIES_USING_BCE = set([
+    "u_ones",
+    "u_zeros"
+])
 
 def get_study_level_data(study_type, base_dir, data_cat):
     """
-    Returns a dict, with keys 'train' and 'valid' and respective values as study level dataframes, 
+    Returns a dict, with keys 'train' and 'valid' and respective values as study level dataframes,
     these dataframes contain three columns 'Path', 'Count', 'Label'
     Args:
-        study_type (string): one of the seven study type folder names in 'train/valid/test' dataset 
+        study_type (string): one of the seven study type folder names in 'train/valid/test' dataset
     """
     study_data = {}
     study_label = {'positive': 1, 'negative': 0}
@@ -42,6 +48,27 @@ def get_study_level_data(study_type, base_dir, data_cat):
                 i+=1
     return study_type, study_data
 
+def get_chexpert_data(base_dir, data_cat):
+    """
+    Returns a dict, with keys 'train' and 'valid' and respective values as study level dataframes,
+    these dataframes contain three columns 'Path', 'Count', 'Label'
+    Args:
+        study_type (string): one of the seven study type folder names in 'train/valid/test' dataset
+    """
+    study_data = {}
+    for phase in data_cat:
+        csv_file = os.path.join(base_dir, phase + '.csv')
+        labeled_studies = pd.read_csv(csv_file)
+        parent_dirs = []
+        for path in labeled_studies['Path']:
+            path_parent_dir = os.path.dirname(path)
+            parent_dirs.append(path_parent_dir)
+        levels_dict = {_: i for i, _ in enumerate(np.unique(parent_dirs))}
+        levels = [levels_dict[_] for _ in parent_dirs]
+        labeled_studies['Level'] = levels
+        study_data[phase] = labeled_studies
+    return "chexpert", study_data
+
 def n_p(x):
     '''convert numpy float to Variable tensor float'''
     return Variable(torch.cuda.FloatTensor([x]), requires_grad=False)
@@ -56,7 +83,7 @@ def get_count(df, cat):
     return df[df['Path'].str.contains(cat)]['Count'].sum()
 
 def train_and_evaluate_model(pretrained_model, num_phases, num_head_phases, batch_size, num_classes, input_size, base_dir, 
-        num_minibatches, sample_with_replacement, study_type):
+        second_base_dir, num_minibatches, sample_with_replacement, study_type, uncertainty_strategy):
     model_name = pretrained_model
     model = pretrainedmodels.__dict__[model_name](num_classes=1000, pretrained='imagenet', drop_rate=0.2)
 
@@ -69,36 +96,44 @@ def train_and_evaluate_model(pretrained_model, num_phases, num_head_phases, batc
     else:
         data_task_list = [get_study_level_data(study_type, base_dir, data_cat) for study_type in study_types]
 
-    train_data = MURALoader(data_task_list, batch_size=batch_size, num_minibatches=num_minibatches, train=True, drop_last=True, 
+    if second_base_dir:
+        data_task_list.append(get_chexpert_data(second_base_dir, data_cat))
+
+    train_data = RadiographLoader(data_task_list, batch_size=batch_size, num_minibatches=num_minibatches, train=True, drop_last=True,
         rescale_size=input_size, sample_with_replacement=sample_with_replacement)
-    test_data = MURALoader(data_task_list, batch_size=batch_size, num_minibatches=num_minibatches, train=False, drop_last=False, 
+    test_data = RadiographLoader(data_task_list, batch_size=batch_size, num_minibatches=num_minibatches, train=False, drop_last=False,
         rescale_size=input_size, sample_with_replacement=sample_with_replacement)
 
-    num_classes_multi = train_data.num_classes_multi(num_tasks=1 if study_type else len(study_types))
+    num_classes_multi = train_data.num_classes_multi(uncertainty_strategy)
     num_channels = train_data.num_channels
 
-    tais = {study_type: {x: get_count(study_data[x], 'positive') for x in data_cat} for study_type, study_data in data_task_list}
-    tnis = {study_type: {x: get_count(study_data[x], 'negative') for x in data_cat} for study_type, study_data in data_task_list}
-    Wt0_list = {study_type: {x: (np.log(float(tnis[study_type][x] + tais[study_type][x]) / tnis[study_type][x]) + 1) for x in data_cat} for study_type, study_data in data_task_list}
-    Wt1_list = {study_type: {x: (np.log(float(tnis[study_type][x] + tais[study_type][x]) / tais[study_type][x]) + 1) for x in data_cat} for study_type, study_data in data_task_list}
+    tais = {study_type: {x: get_count(study_data[x], 'positive') for x in data_cat} for study_type, study_data in data_task_list if study_type != 'chexpert'}
+    tnis = {study_type: {x: get_count(study_data[x], 'negative') for x in data_cat} for study_type, study_data in data_task_list if study_type != 'chexpert'}
+    Wt0_list = {study_type: {x: (np.log(float(tnis[study_type][x] + tais[study_type][x]) / tnis[study_type][x]) + 1) for x in data_cat} for study_type, study_data in data_task_list if study_type != 'chexpert'}
+    Wt1_list = {study_type: {x: (np.log(float(tnis[study_type][x] + tais[study_type][x]) / tais[study_type][x]) + 1) for x in data_cat} for study_type, study_data in data_task_list if study_type != 'chexpert'}
     Wt0_weight = {study_type: {x: n_p(Wt0_list[study_type]['train'] / (Wt0_list[study_type]['train'] + Wt1_list[study_type]['train'])) for x in data_cat} for study_type in Wt0_list}
     Wt1_weight = {study_type: {x: n_p(Wt1_list[study_type]['train'] / (Wt0_list[study_type]['train'] + Wt1_list[study_type]['train'])) for x in data_cat} for study_type in Wt1_list}
 
     criterions = {study_type: nn.CrossEntropyLoss(weight=torch.cat((Wt0_weight[study_type]['train'], Wt1_weight[study_type]['train']), 0)) for study_type in Wt0_weight}
+    if uncertainty_strategy == "u_ignore":
+        criterions['chexpert'] = nn.MaskedBCEWithLogitsLoss()
+    elif uncertainty_strategy == "u_multiclass" :
+        # currently unsupported, don't know how to represent 3 labels in a multi-label multi-hot encoded vector
+        criterions['chexpert'] = nn.CrossEntropyLoss()
+    elif uncertainty_strategy in STRATEGIES_USING_BCE:
+        criterions['chexpert'] = nn.BCEWithLogitsLoss()
 
-    agent = MultiTaskSeparateAgent(num_classes=num_classes_multi, model=model, input_size=input_size)
+    agent = MultiTaskSeparateAgent(num_classes=num_classes_multi, model=model, input_size=input_size, uncertainty_strategy=uncertainty_strategy)
     agent.train_head(criterions=criterions,
-                        train_data=train_data,
-                        num_head_phases=num_head_phases
-                )
+                     train_data=train_data,
+                     num_head_phases=num_head_phases)
     agent.train(criterions=criterions,
-                    train_data=train_data,
-                    test_data=test_data,
-                    num_phases=num_phases,
-                    save_history=True,
-                    save_path=os.path.join(base_dir, '..'),
-                    verbose=True
-                )
+                train_data=train_data,
+                test_data=test_data,
+                num_phases=num_phases,
+                save_history=True,
+                save_path=os.path.join(base_dir, '..'),
+                verbose=True)
 
 def main():
     parser = argparse.ArgumentParser()
@@ -109,9 +144,11 @@ def main():
     parser.add_argument('--num_classes', '-c',default=2, help='the number of classes each task has')
     parser.add_argument('--input_size', '-i', default=224, help='the size of the images to rescale to')
     parser.add_argument('--base_dir', '-d', required=True, help='directory in which train and valid folders are')
+    parser.add_argument('--second_base_dir', '-d2', default=None, help='optional second directory for which to also run multitask training on')
     parser.add_argument('--num_minibatches', '-m', default=5, help='number of minibatches per phase')
     parser.add_argument('--sample_with_replacement', '-r', action='store_true')
     parser.add_argument('--study_type', '-t', default=None, help='If specified, we will only train a single task model on that study')
+    parser.add_argument('--uncertainty_strategy', '-u', default="u_ones", help='for chexpert unlabelled data, how to treat uncertain labels. Default is convert them to positive labels')
 
     args = parser.parse_args()
 
@@ -126,8 +163,8 @@ def main():
             func_arguments[key] = value
 
     train_and_evaluate_model(func_arguments['pretrained_model'], int(func_arguments['num_phases']), int(func_arguments['num_head_phases']), int(func_arguments['batch_size']),
-        int(func_arguments['num_classes']), int(func_arguments['input_size']), func_arguments['base_dir'], int(func_arguments['num_minibatches']),
-        func_arguments['sample_with_replacement'], func_arguments['study_type'])
+        int(func_arguments['num_classes']), int(func_arguments['input_size']), func_arguments['base_dir'], func_arguments['second_base_dir'], int(func_arguments['num_minibatches']),
+        func_arguments['sample_with_replacement'], func_arguments['study_type'], func_arguments['uncertainty_strategy'])
 
 if __name__ == "__main__":
     main()

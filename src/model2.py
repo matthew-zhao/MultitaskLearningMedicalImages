@@ -28,7 +28,7 @@ class _Encoder(nn.Module):
 
 
 class _Decoder(nn.Module):
-    def __init__(self, in_features, output_size, pretrained_model=None):
+    def __init__(self, in_features, output_size, uncertainty_strategy, pretrained_model=None):
         super(_Decoder, self).__init__()
         self.pretrained_model = pretrained_model
         self.pretrained_model.features.norm5 = nn.Sequential(
@@ -42,6 +42,7 @@ class _Decoder(nn.Module):
             nn.Dropout(0.2),
             nn.Linear(in_features, output_size)
         )
+        self.uncertainty_strategy = uncertainty_strategy
 
     def forward(self, x):
         if self.pretrained_model:
@@ -51,15 +52,21 @@ class _Decoder(nn.Module):
         out = adaptive_avg_pool2d(out, (1, 1))
         out = torch.flatten(out, 1)
         x = self.layers(out)
-
+        if self.uncertainty_strategy == 'u_multiclass':
+            # format into 3D output
+            # (# of images, # labels/observations, # classes per observation for uncertainty)
+            x = x.view(x.size(0), 3, x.size(1) / 3.0)
         return x
 
 
 class _Model(nn.Module):
-    def __init__(self, output_size, encoder):
+    def __init__(self, output_size, encoder, uncertainty_strategy):
         super(_Model, self).__init__()
         self.encoder = encoder
-        self.decoder = _Decoder(in_features=encoder.dim_feats, output_size=output_size, pretrained_model=encoder.pretrained_model)
+        self.decoder = _Decoder(in_features=encoder.dim_feats,
+                                output_size=output_size,
+                                uncertainty_strategy=uncertainty_strategy,
+                                pretrained_model=encoder.pretrained_model)
 
     def forward(self, x):
         x = self.encoder(x)
@@ -68,11 +75,14 @@ class _Model(nn.Module):
         return x
 
 
-def Model(num_tasks, pretrained_model, input_size):
+def Model(num_tasks, pretrained_model, input_size, uncertainty_strategy):
     encoder = _Encoder(pretrained_model=pretrained_model, input_size=input_size)
     # multitask case
     #if isinstance(num_tasks, list):
-    return [_Model(output_size=class_size, encoder=encoder) for class_size in num_tasks]
+    return {
+        study_type: _Model(output_size=class_size, encoder=encoder, uncertainty_strategy=uncertainty_strategy)
+        for study_type, class_size in num_tasks.items()
+    }
 
     # single task case
     #return _Model(output_size=num_tasks, encoder=encoder)
