@@ -52,7 +52,8 @@ class MultiTaskSeparateAgent(BaseAgent):
                 optimizer = optimizers[study_type]
                 criterion = criterions[study_type]
 
-                inputs, labels = inputs.to(self.device), labels.to(self.device)
+                inputs = inputs.to(self.device)
+                labels = labels.to(self.device).float() if isinstance(criterion, nn.BCEWithLogitsLoss) else labels.to(self.device)
                 outputs = model(inputs)
                 loss = criterion(outputs, labels)
 
@@ -93,7 +94,8 @@ class MultiTaskSeparateAgent(BaseAgent):
                 optimizer = optimizers[study_type]
                 criterion = criterions[study_type]
 
-                inputs, labels = inputs.to(self.device), labels.to(self.device)
+                inputs = inputs.to(self.device)
+                labels = labels.to(self.device).float() if isinstance(criterion, nn.BCEWithLogitsLoss) else labels.to(self.device)
                 outputs = model(inputs)
                 loss = criterion(outputs, labels)
 
