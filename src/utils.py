@@ -70,7 +70,7 @@ def u_ones(label):
     """
     convert all blanks to 0.0s and the -1 (uncertain label) to 1.0 (positive)
     """
-    if not label:
+    if not label or np.isnan(label):
         return 0
 
     if (isinstance(label, float) or isinstance(label, int)) and label < 0:
@@ -82,7 +82,7 @@ def u_zeros(label):
     """
     convert all blanks to 0.0s and the -1 (uncertain label) to 0.0 (negative)
     """
-    if not label:
+    if not label or np.isnan(label):
         return 0
 
     if (isinstance(label, float) or isinstance(label, int)) and label < 0:
@@ -94,7 +94,7 @@ def u_ignore(label):
     """
     convert all blanks to 0.0s and the -1 (uncertain label) to None (we will handle to ignore)
     """
-    if not label:
+    if not label or np.isnan(label):
         return 0
 
     if (isinstance(label, float) or isinstance(label, int)) and label < 0:
@@ -106,7 +106,7 @@ def u_multiclass(label):
     """
     convert all blanks to 0.0s and the -1 (uncertain label) to None (we will handle to ignore)
     """
-    if not label:
+    if not label or np.isnan(label):
         return 0
 
     if (isinstance(label, float) or isinstance(label, int)) and label < 0:
