@@ -1,12 +1,14 @@
 import torch
 import torch.nn as nn
-import json, os
-from torch.nn.functional import softmax, relu, avg_pool2d, sigmoid
+import json
+import os
+from torch.nn.functional import softmax, sigmoid
 
-from sklearn.metrics import roc_auc_score, roc_curve, auc
+from sklearn.metrics import roc_auc_score, roc_curve
 
 from constants import CHEXPERT_LABEL_ORDERING
 from model import Model
+
 
 class BaseAgent:
     def __init__(self):
@@ -24,6 +26,7 @@ class BaseAgent:
     def load_model(self, save_path):
         pass
 
+
 class MultiTaskSeparateAgent(BaseAgent):
     def __init__(self, num_classes, model, input_size, uncertainty_strategy='u_ones', task_prob=None):
         super(MultiTaskSeparateAgent, self).__init__()
@@ -32,7 +35,7 @@ class MultiTaskSeparateAgent(BaseAgent):
         self.models = {
             study_type: model.to(self.device)
             for study_type, model in Model(num_tasks=num_classes, pretrained_model=model,
-                input_size=input_size, uncertainty_strategy=uncertainty_strategy).items()
+                                           input_size=input_size, uncertainty_strategy=uncertainty_strategy).items()
         }
         self.uncertainty_strategy = uncertainty_strategy
 
@@ -47,13 +50,15 @@ class MultiTaskSeparateAgent(BaseAgent):
 
         for phase in range(num_head_phases):
             num_batches = 0
-            for inputs, labels, level, study_type in train_data.get_loader(prob=self.task_prob if self.task_prob else 'uniform'):
+            for inputs, labels, level, study_type in train_data.get_loader(prob=self.task_prob
+                                                                           if self.task_prob else 'uniform'):
                 model = self.models[study_type]
                 optimizer = optimizers[study_type]
                 criterion = criterions[study_type]
 
                 inputs = inputs.to(self.device)
-                labels = labels.to(self.device).float() if isinstance(criterion, nn.BCEWithLogitsLoss) else labels.to(self.device)
+                labels = labels.to(self.device).float() \
+                    if isinstance(criterion, nn.BCEWithLogitsLoss) else labels.to(self.device)
                 outputs = model(inputs)
                 loss = criterion(outputs, labels)
 
@@ -63,7 +68,6 @@ class MultiTaskSeparateAgent(BaseAgent):
                 num_batches += 1
 
             print(num_batches)
-
 
     def train(self, criterions, train_data, test_data, num_phases=20, save_history=False, save_path='.', verbose=False):
         for study_type, model in self.models.items():
@@ -76,11 +80,11 @@ class MultiTaskSeparateAgent(BaseAgent):
         # TODO: Eventually, we want to be able to customize whether to use LR scheduler and how
         schedulers = {
             study_type: torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='max', factor=0.5, threshold=1e-3,
-                threshold_mode='abs', patience=1, verbose=True)
+                                                                   threshold_mode='abs', patience=1, verbose=True)
             for study_type, optimizer in optimizers.items()
             if study_type != 'chexpert'
         }
-        accuracy = []
+        # accuracy = []
 
         for phase in range(num_phases):
             num_batches = 0
@@ -89,13 +93,15 @@ class MultiTaskSeparateAgent(BaseAgent):
 
             y_true_per_task = {}
             y_predict_per_task = {}
-            for inputs, labels, level, study_type in train_data.get_loader(prob=self.task_prob if self.task_prob else 'uniform'):
+            for inputs, labels, level, study_type in train_data.get_loader(prob=self.task_prob
+                                                                           if self.task_prob else 'uniform'):
                 model = self.models[study_type]
                 optimizer = optimizers[study_type]
                 criterion = criterions[study_type]
 
                 inputs = inputs.to(self.device)
-                labels = labels.to(self.device).float() if isinstance(criterion, nn.BCEWithLogitsLoss) else labels.to(self.device)
+                labels = labels.to(self.device).float() \
+                    if isinstance(criterion, nn.BCEWithLogitsLoss) else labels.to(self.device)
                 outputs = model(inputs)
                 loss = criterion(outputs, labels)
 
@@ -104,7 +110,7 @@ class MultiTaskSeparateAgent(BaseAgent):
                 optimizer.step()
                 num_batches += 1
 
-                #_, predict_labels = torch.max(sigmoid(outputs).detach(), 1)
+                # _, predict_labels = torch.max(sigmoid(outputs).detach(), 1)
                 if study_type != 'chexpert':
                     sigmoid_output = sigmoid(outputs).detach()
                     predict_labels = sigmoid_output[:,1]
@@ -114,7 +120,7 @@ class MultiTaskSeparateAgent(BaseAgent):
                     # how to know which class is which?
                     outputs_detached = outputs.detach()
                     softmax_output = softmax(torch.narrow(outputs_detached, 1, 0, 2), dim=1)
-                    predict_labels = softmax_output[:,1,:]
+                    predict_labels = softmax_output[:, 1, :]
                 else:
                     sigmoid_output = sigmoid(outputs).detach()
                     predict_labels = sigmoid_output
@@ -130,6 +136,7 @@ class MultiTaskSeparateAgent(BaseAgent):
                     y_true_per_task[study_type] = [labels]
                     y_predict_per_task[study_type] = [predict_labels]
 
+            area_under_curve = None
             if len(y_predict_across_batches) > 0:
                 y_predicts = torch.cat(y_predict_across_batches)
                 y_trues = torch.cat(y_true_across_batches)
@@ -139,7 +146,7 @@ class MultiTaskSeparateAgent(BaseAgent):
                 else:
                     # calculate roc_auc for each label
                     area_under_curve = [
-                        roc_auc_score(y_trues[:,i].cpu().numpy(), y_predicts[:,i].cpu().numpy())
+                        roc_auc_score(y_trues[:, i].cpu().numpy(), y_predicts[:, i].cpu().numpy())
                         for i in range(y_predicts.size(1))
                     ]
 
@@ -151,16 +158,18 @@ class MultiTaskSeparateAgent(BaseAgent):
 
                     if task == 'chexpert':
                         auc_per_task_training[task] = {
-                            CHEXPERT_LABEL_ORDERING[i]: roc_auc_score(y_trues[:,i].cpu().numpy(), y_predicts[:,i].cpu().numpy())
+                            CHEXPERT_LABEL_ORDERING[i]: roc_auc_score(y_trues[:, i].cpu().numpy(),
+                                                                      y_predicts[:, i].cpu().numpy())
                             for i in range(y_predicts.size(1))
                         }
                         continue
 
-                    auc_per_task_training[task] = {"abnormality": roc_auc_score(y_trues.cpu().numpy(), y_predicts.cpu().numpy())}
-
+                    auc_per_task_training[task] = {"abnormality": roc_auc_score(y_trues.cpu().numpy(),
+                                                                                y_predicts.cpu().numpy())}
 
             last_phase = True if phase == (num_phases - 1) else False
-            fpr, tpr, thresholds, auc, roc_curve_graphing_info_per_task, auc_per_task = self.eval(test_data, last_phase=last_phase)
+            fpr, tpr, thresholds, auc, roc_curve_graphing_info_per_task, auc_per_task = self.eval(test_data,
+                                                                                                  last_phase=last_phase)
 
             # only decay learning rate on plateau for MURA
             for study_type, scheduler in schedulers.items():
@@ -179,7 +188,8 @@ class MultiTaskSeparateAgent(BaseAgent):
 
                 for task, label_type_to_auc in auc_per_task.items():
                     for label_type, auc in label_type_to_auc.items():
-                        print('[Phase {}] [Task {}] [Label {}] Validation AUC: {}'.format(phase+1, task, label_type, auc))
+                        print('[Phase {}] [Task {}] [Label {}] Validation AUC: {}'.format(phase+1, task, label_type,
+                                                                                          auc))
 
             if last_phase:
                 if fpr and tpr:
@@ -191,9 +201,8 @@ class MultiTaskSeparateAgent(BaseAgent):
                         print('[Task {}][Label {}] False Positive Rates: {}'.format(task, label_type, fpr))
                         print('[Task {}][Label {}] True Positive Rates: {}'.format(task, label_type, tpr))
 
-        #if save_history:
-        #    self._save_history(accuracy, save_path)
-
+        # if save_history:
+        #     self._save_history(accuracy, save_path)
 
     def _save_history(self, history, save_path):
         if not os.path.isdir(save_path):
@@ -205,10 +214,9 @@ class MultiTaskSeparateAgent(BaseAgent):
             with open(filename, 'w') as f:
                 json.dump(h, f)
 
-
     def eval(self, data, last_phase=False):
-        correct = [0 for _ in range(self.num_tasks)]
-        total = [0 for _ in range(self.num_tasks)]
+        # correct = [0 for _ in range(self.num_tasks)]
+        # total = [0 for _ in range(self.num_tasks)]
 
         y_true_across_batches = []
         y_predict_across_batches = []
@@ -218,19 +226,17 @@ class MultiTaskSeparateAgent(BaseAgent):
 
         y_levels = []
 
-        prev_task = 0
-
         with torch.no_grad():
             for study_type, model in self.models.items():
                 model.eval()
 
-            valid_loss = 0.
+            # valid_loss = 0.
             for inputs, labels, level, study_type in data.get_loader():
                 model = self.models[study_type]
                 inputs, labels = inputs.to(self.device), labels.to(self.device)
                 outputs = model(inputs)
-                #loss = self.criterion(outputs, labels)
-                #valid_loss += loss.item()
+                # loss = self.criterion(outputs, labels)
+                # valid_loss += loss.item()
                 # average across views
                 # _, per_view_predict_labels = torch.max(outputs.detach(), 1)
 
@@ -243,7 +249,7 @@ class MultiTaskSeparateAgent(BaseAgent):
                     # how to know which class is which?
                     outputs_detached = outputs.detach()
                     softmax_output = softmax(torch.narrow(outputs_detached, 1, 0, 2), dim=1)
-                    predict_labels = softmax_output[:,1,:]
+                    predict_labels = softmax_output[:, 1, :]
                 else:
                     output = sigmoid(outputs).detach()
                     predict_labels = output
@@ -264,8 +270,8 @@ class MultiTaskSeparateAgent(BaseAgent):
                     y_true_per_task[study_type] = [labels]
                     y_predict_per_task[study_type] = [predict_labels]
 
-                #total[task] += labels.size(0)
-                #correct[task] += (per_view_predict_labels == labels).sum().item()
+                # total[task] += labels.size(0)
+                # correct[task] += (per_view_predict_labels == labels).sum().item()
 
             fpr, tpr, thresholds = None, None, None
             area_under_curve = None
@@ -287,26 +293,29 @@ class MultiTaskSeparateAgent(BaseAgent):
                     if task == 'chexpert':
                         if last_phase:
                             roc_curve_graphing_info_per_task[task] = {
-                                CHEXPERT_LABEL_ORDERING[i]: roc_curve(y_trues[:,i].cpu().numpy(), y_predicts[:,i].cpu().numpy())
+                                CHEXPERT_LABEL_ORDERING[i]: roc_curve(y_trues[:, i].cpu().numpy(),
+                                                                      y_predicts[:, i].cpu().numpy())
                                 for i in range(y_predicts.size(1))
                             }
                         auc_per_task[task] = {
-                            CHEXPERT_LABEL_ORDERING[i]: roc_auc_score(y_trues[:,i].cpu().numpy(), y_predicts[:,i].cpu().numpy())
+                            CHEXPERT_LABEL_ORDERING[i]: roc_auc_score(y_trues[:, i].cpu().numpy(),
+                                                                      y_predicts[:, i].cpu().numpy())
                             for i in range(y_predicts.size(1))
                         }
                         continue
 
                     if last_phase:
-                        roc_curve_graphing_info_per_task[task] = {"abnormality": roc_curve(y_trues.cpu().numpy(), y_predicts.cpu().numpy())}
-                    auc_per_task[task] = {"abnormality": roc_auc_score(y_trues.cpu().numpy(), y_predicts.cpu().numpy())}
+                        roc_curve_graphing_info_per_task[task] = {"abnormality": roc_curve(y_trues.cpu().numpy(),
+                                                                                           y_predicts.cpu().numpy())}
+                    auc_per_task[task] = {"abnormality": roc_auc_score(y_trues.cpu().numpy(),
+                                                                       y_predicts.cpu().numpy())}
 
             # letting model know it's back to training time
             for study_type, model in self.models.items():
                 model.train()
 
-            #return [c / t for c, t in zip(correct, total)]
+            # return [c / t for c, t in zip(correct, total)]
             return fpr, tpr, thresholds, area_under_curve, roc_curve_graphing_info_per_task, auc_per_task
-
 
     def save_model(self, save_path='.'):
         if not os.path.isdir(save_path):
@@ -315,7 +324,6 @@ class MultiTaskSeparateAgent(BaseAgent):
         for study_type, model in self.models.items():
             filename = os.path.join(save_path, 'model_{}'.format(study_type))
             torch.save(model.state_dict(), filename)
-
 
     def load_model(self, save_path='.'):
         if os.path.isdir(save_path):
