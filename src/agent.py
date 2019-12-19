@@ -197,7 +197,7 @@ class MultiTaskSeparateAgent(BaseAgent):
                     print('True Positive Rates Overall: {}'.format(tpr))
 
                 for task, label_type_to_roc_curve_graphing_info in roc_curve_graphing_info_per_task.items():
-                    for label_type, (fpr, tpr, thresholds) in label_type_to_roc_curve_graphing_info:
+                    for label_type, (fpr, tpr, thresholds) in label_type_to_roc_curve_graphing_info.items():
                         print('[Task {}][Label {}] False Positive Rates: {}'.format(task, label_type, fpr))
                         print('[Task {}][Label {}] True Positive Rates: {}'.format(task, label_type, tpr))
 
