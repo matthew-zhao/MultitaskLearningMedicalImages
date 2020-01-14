@@ -137,7 +137,6 @@ def train_and_evaluate_model(pretrained_model, num_phases, num_head_phases, batc
                 test_data=test_data,
                 num_phases=num_phases,
                 save_history=True,
-                save_path=os.path.join(base_dir, '..'),
                 verbose=True)
 
 def main():
