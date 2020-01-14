@@ -93,10 +93,9 @@ def train_and_evaluate_model(pretrained_model, num_phases, num_head_phases, batc
 
     data_cat = ['train', 'valid'] # data categories
 
-    study_types = [folder for folder in os.listdir(os.path.join(base_dir, 'train'))]
-
     data_task_list = []
     if base_dir:
+        study_types = [folder for folder in os.listdir(os.path.join(base_dir, 'train'))]
         if study_type:
             data_task_list = [get_study_level_data(study_type, base_dir, data_cat)]
         else:
